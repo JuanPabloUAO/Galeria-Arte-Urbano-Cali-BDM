@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 900" width="1150" height="900" style="background:#ffffff; font-family:'Segoe UI', Arial, sans-serif;">
+  <defs>
+    <style>
+      .class-box { fill: #fdfdfd; stroke: #2b3a4a; stroke-width: 1.8; rx: 4; }
+      .class-header { fill: #2b3a4a; font-size: 14px; font-weight: bold; fill: #ffffff; }
+      .header-bg { fill: #2b3a4a; }
+      .header-bg-central { fill: #b8432f; }
+      .header-bg-assoc { fill: #20639b; }
+      .attr-text { fill: #1a252f; font-size: 11.5px; font-family: 'Consolas', monospace; }
+      .pk-text { font-weight: bold; fill: #b8432f; }
+      .fk-text { font-style: italic; fill: #20639b; }
+      .relation-line { stroke: #34495e; stroke-width: 1.8; fill: none; }
+      .card-text { font-size: 12px; font-weight: bold; fill: #c0392b; }
+      .verb-text { font-size: 12px; font-weight: bold; fill: #2980b9; font-style: italic; }
+      .title-main { font-size: 20px; font-weight: bold; fill: #2c3e50; }
+      .title-sub { font-size: 13px; fill: #7f8c8d; }
+    </style>
+  </defs>
+
+  <!-- TITULO DEL DIAGRAMA -->
+  <text x="40" y="30" class="title-main">Galería de Arte Urbano de Cali — Diagrama Conceptual UML (MER)</text>
+  <text x="40" y="48" class="title-sub">Bases de Datos Multimedia (BDM) | Integrantes: Juan Pablo Campo Bertin y Jean Deiby Garcia</text>
+
+  <!-- ENTIDAD 1: USUARIO -->
+  <g transform="translate(40, 70)">
+    <rect width="240" height="180" class="class-box" />
+    <path d="M 0 0 L 240 0 L 240 28 L 0 28 Z" class="header-bg" />
+    <text x="120" y="19" text-anchor="middle" class="class-header">USUARIO</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_usuario : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text">+ nombre : string</text>
+    <text x="12" y="82" class="attr-text">+ apellido : string</text>
+    <text x="12" y="100" class="attr-text">+ correo : string &lt;&lt;UNIQUE&gt;&gt;</text>
+    <text x="12" y="118" class="attr-text">+ password_hash : string</text>
+    <text x="12" y="136" class="attr-text">+ tipo_usuario : string</text>
+    <text x="12" y="154" class="attr-text">+ fecha_registro : datetime</text>
+    <text x="12" y="172" class="attr-text">+ estado : string</text>
+  </g>
+
+  <!-- ENTIDAD 2: ARTISTA -->
+  <g transform="translate(40, 310)">
+    <rect width="240" height="175" class="class-box" />
+    <path d="M 0 0 L 240 0 L 240 28 L 0 28 Z" class="header-bg" />
+    <text x="120" y="19" text-anchor="middle" class="class-header">ARTISTA</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_artista : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text">+ nombre_artistico : string &lt;&lt;UNIQUE&gt;&gt;</text>
+    <text x="12" y="82" class="attr-text">+ nombre_real : string [0..1]</text>
+    <text x="12" y="100" class="attr-text">+ biografia : text [0..1]</text>
+    <text x="12" y="118" class="attr-text">+ pais_origen : string</text>
+    <text x="12" y="136" class="attr-text">+ red_social : string [0..1]</text>
+    <text x="12" y="154" class="attr-text">+ estado : string</text>
+  </g>
+
+  <!-- ENTIDAD 3: CATEGORIA -->
+  <g transform="translate(440, 70)">
+    <rect width="250" height="130" class="class-box" />
+    <path d="M 0 0 L 250 0 L 250 28 L 0 28 Z" class="header-bg" />
+    <text x="125" y="19" text-anchor="middle" class="class-header">CATEGORIA</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_categoria : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text">+ nombre : string &lt;&lt;UNIQUE&gt;&gt;</text>
+    <text x="12" y="82" class="attr-text">+ descripcion : text [0..1]</text>
+    <text x="12" y="100" class="attr-text">+ estado : string</text>
+  </g>
+
+  <!-- ENTIDAD 4: OBRA (CENTRAL) -->
+  <g transform="translate(440, 270)">
+    <rect width="260" height="235" class="class-box" style="stroke: #b8432f; stroke-width: 2.2;" />
+    <path d="M 0 0 L 260 0 L 260 28 L 0 28 Z" class="header-bg-central" />
+    <text x="130" y="19" text-anchor="middle" class="class-header">OBRA</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_obra : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text">+ nombre : string</text>
+    <text x="12" y="82" class="attr-text">+ descripcion : text</text>
+    <text x="12" y="100" class="attr-text">+ fecha_creacion : date [0..1]</text>
+    <text x="12" y="118" class="attr-text">+ estado_conservacion : string</text>
+    <text x="12" y="136" class="attr-text">+ fecha_registro : datetime</text>
+    <text x="12" y="154" class="attr-text fk-text"># id_artistaFK : string &lt;&lt;FK&gt;&gt;</text>
+    <text x="12" y="172" class="attr-text fk-text"># id_categoriaFK : string &lt;&lt;FK&gt;&gt;</text>
+    <text x="12" y="190" class="attr-text fk-text"># id_ubicacionFK : string &lt;&lt;FK&gt;&gt;</text>
+    <text x="12" y="208" class="attr-text fk-text"># id_usuarioFK : string &lt;&lt;FK&gt;&gt;</text>
+  </g>
+
+  <!-- ENTIDAD 5: UBICACION -->
+  <g transform="translate(850, 270)">
+    <rect width="250" height="185" class="class-box" />
+    <path d="M 0 0 L 250 0 L 250 28 L 0 28 Z" class="header-bg" />
+    <text x="125" y="19" text-anchor="middle" class="class-header">UBICACION</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_ubicacion : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text">+ nombre_lugar : string</text>
+    <text x="12" y="82" class="attr-text">+ direccion : string</text>
+    <text x="12" y="100" class="attr-text">+ barrio : string</text>
+    <text x="12" y="118" class="attr-text">+ comuna : string</text>
+    <text x="12" y="136" class="attr-text">+ latitud : decimal(10,8)</text>
+    <text x="12" y="154" class="attr-text">+ longitud : decimal(11,8)</text>
+  </g>
+
+  <!-- ENTIDAD 6: RECURSO_MULTIMEDIA -->
+  <g transform="translate(40, 580)">
+    <rect width="260" height="225" class="class-box" />
+    <path d="M 0 0 L 260 0 L 260 28 L 0 28 Z" class="header-bg" />
+    <text x="130" y="19" text-anchor="middle" class="class-header">RECURSO_MULTIMEDIA</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_recurso : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text">+ nombre : string</text>
+    <text x="12" y="82" class="attr-text">+ tipo_recurso : string</text>
+    <text x="12" y="100" class="attr-text">+ descripcion : text [0..1]</text>
+    <text x="12" y="118" class="attr-text">+ ruta_archivo : string</text>
+    <text x="12" y="136" class="attr-text">+ formato : string</text>
+    <text x="12" y="154" class="attr-text">+ tamano_bytes : bigint</text>
+    <text x="12" y="172" class="attr-text">+ duracion_segundos : int [0..1]</text>
+    <text x="12" y="190" class="attr-text">+ fecha_registro : datetime</text>
+    <text x="12" y="208" class="attr-text fk-text"># id_obraFK : string &lt;&lt;FK&gt;&gt;</text>
+  </g>
+
+  <!-- ENTIDAD 7: RUTA_OBRA (ASOCIATIVA) -->
+  <g transform="translate(440, 590)">
+    <rect width="260" height="175" class="class-box" style="stroke: #20639b; stroke-width: 2.2;" />
+    <path d="M 0 0 L 260 0 L 260 28 L 0 28 Z" class="header-bg-assoc" />
+    <text x="130" y="19" text-anchor="middle" class="class-header">RUTA_OBRA</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_ruta_obra : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text fk-text"># id_rutaFK : string &lt;&lt;FK&gt;&gt;</text>
+    <text x="12" y="82" class="attr-text fk-text"># id_obraFK : string &lt;&lt;FK&gt;&gt;</text>
+    <text x="12" y="100" class="attr-text">+ orden_visita : int</text>
+    <text x="12" y="118" class="attr-text">+ tiempo_estimado_min : int</text>
+    <text x="12" y="136" class="attr-text">+ recomendacion : text [0..1]</text>
+  </g>
+
+  <!-- ENTIDAD 8: RUTA -->
+  <g transform="translate(850, 590)">
+    <rect width="250" height="175" class="class-box" />
+    <path d="M 0 0 L 250 0 L 250 28 L 0 28 Z" class="header-bg" />
+    <text x="125" y="19" text-anchor="middle" class="class-header">RUTA</text>
+    <text x="12" y="46" class="attr-text pk-text">+ id_ruta : string &lt;&lt;PK&gt;&gt;</text>
+    <text x="12" y="64" class="attr-text">+ nombre : string &lt;&lt;UNIQUE&gt;&gt;</text>
+    <text x="12" y="82" class="attr-text">+ descripcion : text</text>
+    <text x="12" y="100" class="attr-text">+ duracion_estimada_min : int</text>
+    <text x="12" y="118" class="attr-text">+ distancia_estimada_km : decimal(5,2)</text>
+    <text x="12" y="136" class="attr-text">+ estado : string</text>
+  </g>
+
+  <!-- LINEAS DE RELACIONES -->
+
+  <!-- 1. USUARIO -> OBRA -->
+  <path d="M 280 180 L 360 180 L 360 320 L 440 320" class="relation-line" />
+  <text x="290" y="172" class="card-text">1..1</text>
+  <text x="400" y="312" class="card-text">0..*</text>
+  <text x="368" y="245" class="verb-text">registra &gt;</text>
+
+  <!-- 2. ARTISTA -> OBRA -->
+  <line x1="280" y1="380" x2="440" y2="380" class="relation-line" />
+  <text x="290" y="372" class="card-text">1..1</text>
+  <text x="400" y="372" class="card-text">0..*</text>
+  <text x="330" y="365" class="verb-text">realiza &gt;</text>
+
+  <!-- 3. CATEGORIA -> OBRA -->
+  <line x1="565" y1="200" x2="565" y2="270" class="relation-line" />
+  <text x="575" y="220" class="card-text">1..1</text>
+  <text x="575" y="260" class="card-text">0..*</text>
+  <text x="575" y="240" class="verb-text">clasifica v</text>
+
+  <!-- 4. UBICACION -> OBRA -->
+  <line x1="850" y1="370" x2="700" y2="370" class="relation-line" />
+  <text x="815" y="362" class="card-text">1..1</text>
+  <text x="715" y="362" class="card-text">0..*</text>
+  <text x="740" y="390" class="verb-text">&lt; contiene</text>
+
+  <!-- 5. OBRA -> RECURSO_MULTIMEDIA -->
+  <path d="M 440 450 L 360 450 L 360 670 L 300 670" class="relation-line" />
+  <text x="405" y="442" class="card-text">1..1</text>
+  <text x="310" y="662" class="card-text">0..*</text>
+  <text x="368" y="550" class="verb-text">&lt; posee</text>
+
+  <!-- 6. OBRA -> RUTA_OBRA -->
+  <line x1="565" y1="505" x2="565" y2="590" class="relation-line" />
+  <text x="575" y="525" class="card-text">1..1</text>
+  <text x="575" y="575" class="card-text">0..*</text>
+  <text x="575" y="550" class="verb-text">incluye v</text>
+
+  <!-- 7. RUTA -> RUTA_OBRA -->
+  <line x1="850" y1="675" x2="700" y2="675" class="relation-line" />
+  <text x="815" y="665" class="card-text">1..1</text>
+  <text x="715" y="665" class="card-text">1..*</text>
+  <text x="740" y="695" class="verb-text">&lt; compone</text>
+
+</svg>

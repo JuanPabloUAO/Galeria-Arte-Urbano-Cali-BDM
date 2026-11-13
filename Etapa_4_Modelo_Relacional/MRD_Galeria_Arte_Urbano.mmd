@@ -1,0 +1,94 @@
+erDiagram
+    usuario ||--o{ obra : "registra"
+    artista ||--o{ obra : "realiza"
+    categoria ||--o{ obra : "clasifica"
+    ubicacion ||--o{ obra : "contiene"
+    barrio ||--o{ ubicacion : "agrupa"
+    obra ||--o{ recurso_multimedia : "posee"
+    formato_multimedia ||--o{ recurso_multimedia : "describe"
+    ruta ||--|{ ruta_obra : "compone"
+    obra ||--o{ ruta_obra : "se incluye en"
+
+    usuario {
+        CHAR36 id_usuario PK
+        VARCHAR50 nombre "NN"
+        VARCHAR50 apellido "NN"
+        VARCHAR100 correo UK "NN"
+        VARCHAR255 password_hash "NN, CHECK BCrypt"
+        VARCHAR20 tipo_usuario "NN, CHECK, DEF VISITANTE"
+        DATETIME fecha_registro "NN, DEF NOW"
+        VARCHAR10 estado "NN, CHECK, DEF ACTIVO"
+    }
+    artista {
+        CHAR36 id_artista PK
+        VARCHAR100 nombre_artistico UK "NN"
+        VARCHAR100 nombre_real "NULL"
+        TEXT biografia "NULL"
+        VARCHAR60 pais_origen "NN, DEF Colombia"
+        VARCHAR150 red_social "NULL, CHECK"
+        VARCHAR10 estado "NN, CHECK, DEF ACTIVO"
+    }
+    categoria {
+        CHAR36 id_categoria PK
+        VARCHAR50 nombre UK "NN"
+        TEXT descripcion "NULL"
+        VARCHAR10 estado "NN, CHECK, DEF ACTIVO"
+    }
+    barrio {
+        INT id_barrio PK "AUTO_INCREMENT"
+        VARCHAR60 nombre UK "NN"
+        TINYINT comuna "NN, CHECK 1-22"
+    }
+    ubicacion {
+        CHAR36 id_ubicacion PK
+        VARCHAR100 nombre_lugar "NN, UQ con direccion"
+        VARCHAR120 direccion "NN"
+        INT id_barrioFK FK "NN"
+        DECIMAL10_8 latitud "NN, CHECK 3.25-3.55"
+        DECIMAL11_8 longitud "NN, CHECK -76.60 a -76.45"
+    }
+    obra {
+        CHAR36 id_obra PK
+        VARCHAR120 nombre "NN, UQ con ubicacion"
+        TEXT descripcion "NN"
+        DATE fecha_creacion "NULL, CHECK"
+        VARCHAR15 estado_conservacion "NN, CHECK, DEF BUENO"
+        DATETIME fecha_registro "NN, DEF NOW"
+        CHAR36 id_artistaFK FK "NN"
+        CHAR36 id_categoriaFK FK "NN"
+        CHAR36 id_ubicacionFK FK "NN"
+        CHAR36 id_usuarioFK FK "NN"
+    }
+    formato_multimedia {
+        VARCHAR10 codigo_formato PK
+        VARCHAR15 tipo_recurso "NN, CHECK"
+        VARCHAR60 mime_type "NN"
+        VARCHAR150 descripcion "NULL"
+    }
+    recurso_multimedia {
+        CHAR36 id_recurso PK
+        VARCHAR100 nombre "NN"
+        TEXT descripcion "NULL"
+        VARCHAR255 ruta_archivo UK "NN, CHECK relativa"
+        VARCHAR10 codigo_formatoFK FK "NN"
+        BIGINT tamano_bytes "NN, CHECK mayor 0"
+        INT duracion_segundos "NULL, CHECK mayor 0"
+        DATETIME fecha_registro "NN, DEF NOW"
+        CHAR36 id_obraFK FK "NN"
+    }
+    ruta {
+        CHAR36 id_ruta PK
+        VARCHAR100 nombre UK "NN"
+        TEXT descripcion "NN"
+        SMALLINT duracion_estimada_min "NN, CHECK mayor 0"
+        DECIMAL5_2 distancia_estimada_km "NN, CHECK mayor 0"
+        VARCHAR20 estado "NN, CHECK, DEF ACTIVO"
+    }
+    ruta_obra {
+        CHAR36 id_ruta_obra PK
+        CHAR36 id_rutaFK FK "NN, UQ con obra y con orden"
+        CHAR36 id_obraFK FK "NN"
+        SMALLINT orden_visita "NN, CHECK mayor 0"
+        SMALLINT tiempo_estimado_min "NN, DEF 10"
+        TEXT recomendacion "NULL"
+    }

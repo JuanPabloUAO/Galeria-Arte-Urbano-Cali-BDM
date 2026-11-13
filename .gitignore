@@ -1,0 +1,14 @@
+## Visual Studio / .NET
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.userprefs
+*.suo
+*.slnx
+*.dtbcache*
+
+## System / OS
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,4 @@
+Contenido de realidad aumentada (referencia) para la obra 'Memoria del Río'.
+marcador.png  -> imagen que una app de AR reconocería para anclar el contenido.
+modelo_ar.glb -> modelo 3D que se superpondría sobre el mural.
+El proyecto solo registra la referencia a esta carpeta; no se exige la experiencia AR.

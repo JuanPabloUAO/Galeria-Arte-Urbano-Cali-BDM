@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Capa de NEGOCIO: validaciones, reglas, cifrado de contraseñas y manejo de archivos. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GaleriaArte.Entidades\GaleriaArte.Entidades.csproj" />
+    <ProjectReference Include="..\GaleriaArte.Datos\GaleriaArte.Datos.csproj" />
+  </ItemGroup>
+</Project>

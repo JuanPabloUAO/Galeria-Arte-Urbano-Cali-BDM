@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.0.0">
+  <zoom_level>10</zoom_level>
+  
+  <!-- ENTIDAD 1: USUARIO -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>40</y>
+      <w>240</w>
+      <h>180</h>
+    </coordinates>
+    <panel_attributes>USUARIO
+--
+ id_usuario : string &lt;&lt;PK&gt;&gt;
+ nombre : string
+ apellido : string
+ correo : string &lt;&lt;UNIQUE&gt;&gt;
+ password_hash : string
+ tipo_usuario : string
+ fecha_registro : datetime
+ estado : string
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- ENTIDAD 2: ARTISTA -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>300</y>
+      <w>240</w>
+      <h>180</h>
+    </coordinates>
+    <panel_attributes>ARTISTA
+--
+ id_artista : string &lt;&lt;PK&gt;&gt;
+ nombre_artistico : string &lt;&lt;UNIQUE&gt;&gt;
+ nombre_real : string [0..1]
+ biografia : text [0..1]
+ pais_origen : string
+ red_social : string [0..1]
+ estado : string
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- ENTIDAD 3: CATEGORIA -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>420</x>
+      <y>40</y>
+      <w>240</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>CATEGORIA
+--
+ id_categoria : string &lt;&lt;PK&gt;&gt;
+ nombre : string &lt;&lt;UNIQUE&gt;&gt;
+ descripcion : text [0..1]
+ estado : string
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- ENTIDAD 4: OBRA (CENTRAL) -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>420</x>
+      <y>280</y>
+      <w>260</w>
+      <h>230</h>
+    </coordinates>
+    <panel_attributes>OBRA
+--
+ id_obra : string &lt;&lt;PK&gt;&gt;
+ nombre : string
+ descripcion : text
+ fecha_creacion : date [0..1]
+ estado_conservacion : string
+ fecha_registro : datetime
+ id_artistaFK : string &lt;&lt;FK&gt;&gt;
+ id_categoriaFK : string &lt;&lt;FK&gt;&gt;
+ id_ubicacionFK : string &lt;&lt;FK&gt;&gt;
+ id_usuarioFK : string &lt;&lt;FK&gt;&gt;
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- ENTIDAD 5: UBICACION -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>800</x>
+      <y>280</y>
+      <w>240</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>UBICACION
+--
+ id_ubicacion : string &lt;&lt;PK&gt;&gt;
+ nombre_lugar : string
+ direccion : string
+ barrio : string
+ comuna : string
+ latitud : decimal(10,8)
+ longitud : decimal(11,8)
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- ENTIDAD 6: RECURSO_MULTIMEDIA -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>600</y>
+      <w>260</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>RECURSO_MULTIMEDIA
+--
+ id_recurso : string &lt;&lt;PK&gt;&gt;
+ nombre : string
+ tipo_recurso : string
+ descripcion : text [0..1]
+ ruta_archivo : string
+ formato : string
+ tamano_bytes : bigint
+ duracion_segundos : int [0..1]
+ fecha_registro : datetime
+ id_obraFK : string &lt;&lt;FK&gt;&gt;
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- ENTIDAD 7: RUTA_OBRA (ASOCIATIVA) -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>420</x>
+      <y>610</y>
+      <w>260</w>
+      <h>180</h>
+    </coordinates>
+    <panel_attributes>RUTA_OBRA
+--
+ id_ruta_obra : string &lt;&lt;PK&gt;&gt;
+ id_rutaFK : string &lt;&lt;FK&gt;&gt;
+ id_obraFK : string &lt;&lt;FK&gt;&gt;
+ orden_visita : int
+ tiempo_estimado_min : int
+ recomendacion : text [0..1]
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- ENTIDAD 8: RUTA -->
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>800</x>
+      <y>610</y>
+      <w>240</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>RUTA
+--
+ id_ruta : string &lt;&lt;PK&gt;&gt;
+ nombre : string &lt;&lt;UNIQUE&gt;&gt;
+ descripcion : text
+ duracion_estimada_min : int
+ distancia_estimada_km : decimal(5,2)
+ estado : string
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+
+  <!-- RELACIONES -->
+
+  <!-- Relacion 1: USUARIO -> OBRA (registra) -->
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>280</x>
+      <y>150</y>
+      <w>160</w>
+      <h>180</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=0..*
+registra &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;80.0;20.0;80.0;160.0;140.0;160.0</additional_attributes>
+  </element>
+
+  <!-- Relacion 2: ARTISTA -> OBRA (realiza) -->
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>280</x>
+      <y>370</y>
+      <w>160</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=0..*
+realiza &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;140.0;20.0</additional_attributes>
+  </element>
+
+  <!-- Relacion 3: CATEGORIA -> OBRA (clasifica) -->
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>530</x>
+      <y>180</y>
+      <w>90</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=0..*
+clasifica v</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;100.0</additional_attributes>
+  </element>
+
+  <!-- Relacion 4: UBICACION -> OBRA (contiene) -->
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>680</x>
+      <y>360</y>
+      <w>140</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=0..*
+&lt; contiene</panel_attributes>
+    <additional_attributes>120.0;20.0;10.0;20.0</additional_attributes>
+  </element>
+
+  <!-- Relacion 5: OBRA -> RECURSO_MULTIMEDIA (posee) -->
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>300</x>
+      <y>470</y>
+      <w>140</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=0..*
+&lt; posee</panel_attributes>
+    <additional_attributes>120.0;20.0;60.0;20.0;60.0;180.0;10.0;180.0</additional_attributes>
+  </element>
+
+  <!-- Relacion 6: OBRA -> RUTA_OBRA (incluida en) -->
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>530</x>
+      <y>510</y>
+      <w>90</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=0..*
+incluye v</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;100.0</additional_attributes>
+  </element>
+
+  <!-- Relacion 7: RUTA -> RUTA_OBRA (estructura) -->
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>680</x>
+      <y>680</y>
+      <w>140</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+&lt; compone</panel_attributes>
+    <additional_attributes>120.0;20.0;10.0;20.0</additional_attributes>
+  </element>
+
+</diagram>

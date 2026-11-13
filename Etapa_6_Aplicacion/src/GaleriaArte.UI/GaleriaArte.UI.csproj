@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Capa de INTERFAZ (WinForms): solo muestra datos y llama a la capa de negocio. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>GaleriaArteUrbano</AssemblyName>
+    <RootNamespace>GaleriaArte.UI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GaleriaArte.Entidades\GaleriaArte.Entidades.csproj" />
+    <ProjectReference Include="..\GaleriaArte.Negocio\GaleriaArte.Negocio.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- La configuración (cadena de conexión) se copia junto al .exe -->
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>
