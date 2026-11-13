@@ -1,0 +1,25 @@
+========================================================================
+PROYECTO: Galería de Arte Urbano de Cali (C# WinForms + MySQL 8)
+Asignatura: Bases de Datos Multimedia - UAO
+Integrantes: Juan Pablo Campo Bertin (2235544) · Jean Deiby Garcia
+Docente: David Alejandro Castro Benavides
+========================================================================
+
+INSTRUCCIONES DE EJECUCIÓN:
+
+1. Base de datos:
+   - Ejecutar los scripts SQL en MySQL 8:
+     01_estructura.sql -> 02_datos_prueba.sql -> 03_vistas_procedimientos_indices.sql
+     (o ejecutar directamente Galeria_Arte_Urbano_COMPLETO.sql en MySQL Workbench).
+
+2. Configuración de conexión:
+   - Abrir el archivo src/GaleriaArte.UI/appsettings.json
+   - Verificar usuario (root), contraseña y puerto (3306) de su servidor MySQL local.
+
+3. Compilar y correr:
+   - Abrir GaleriaArteUrbano.sln en Visual Studio 2022 (o ejecutar 'dotnet run --project src/GaleriaArte.UI').
+   - Presionar F5.
+
+USUARIOS DE PRUEBA:
+- Administrador: admin@galeriacali.co | Clave: Admin123*
+- Visitante: visitante@galeriacali.co | Clave: Visitante123*
