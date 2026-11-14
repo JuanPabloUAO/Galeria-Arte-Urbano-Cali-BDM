@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="15.0.0">
+  <zoom_level>8</zoom_level>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>40</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>PAIS
+--
+ idPais : string &lt;&lt;PK&gt;&gt;
+ nombrePais: string</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>380</x>
+      <y>30</y>
+      <w>250</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>ARTISTA
+--
+ idArtista : string &lt;&lt;PK&gt;&gt;
+ nombreArtistico: string
+ nombre1Real : string
+ nombre2Real : string [0..1]
+ apellido1Real: string
+ apellido2Real : string [0..1]
+ biografia [0..1]: text
+ perfilRedSocial : string [0..1]
+ estadoArtista: boolean
+
+ idPaisFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>280</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>TIPO_USUARIO
+--
+ idTipoUsuario : string &lt;&lt;PK&gt;&gt;
+ nombreTipoUsuario: string</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>380</x>
+      <y>260</y>
+      <w>250</w>
+      <h>200</h>
+    </coordinates>
+    <panel_attributes>USUARIO
+--
+ idUsuario : string &lt;&lt;PK&gt;&gt;
+ nombre1Usuario: string
+ nombre2Usuario [0..1]: string
+ apellido1Usuario: string
+ apellido2Usuario [0..1]: string
+ correoUsuario: string (único)
+ contrasenaHash: string
+ fechaRegistroUsuario: date
+ estadoUsuario: boolean
+
+ idTipoUsuarioFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>40</x>
+      <y>560</y>
+      <w>210</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>COMUNA
+--
+ idComuna : string &lt;&lt;PK&gt;&gt;
+ numeroComuna: int</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>380</x>
+      <y>550</y>
+      <w>250</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>BARRIO
+--
+ idBarrio &lt;&lt;PK&gt;&gt;: string
+ nombreBarrio: string
+
+ idComunaFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>760</x>
+      <y>530</y>
+      <w>250</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>UBICACION
+--
+ idUbicacion : string &lt;&lt;PK&gt;&gt;
+ nombreLugar: string
+ direccion: string
+ latitud: decimal
+ longitud: decimal
+
+ idBarrioFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1120</x>
+      <y>30</y>
+      <w>250</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>CATEGORIA
+--
+ idCategoria : string &lt;&lt;PK&gt;&gt;
+ nombreCategoria: string
+ descripcionCategoria : text [0..1]
+ estadoCategoria: boolean</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>760</x>
+      <y>230</y>
+      <w>250</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>OBRA
+--
+ idObra : string &lt;&lt;PK&gt;&gt;
+ nombreObra: string
+ descripcionObra : text [0..1]
+ fechaCreacion : date
+ estadoConservacion: string
+ fechaRegistroObra: date
+
+ idArtistaFK : string &lt;&lt;FK&gt;&gt;
+ idCategoriaFK : string &lt;&lt;FK&gt;&gt;
+ idUbicacionFK : string &lt;&lt;FK&gt;&gt;
+ idUsuarioFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1500</x>
+      <y>30</y>
+      <w>250</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>RUTA
+--
+ idRuta: string &lt;&lt;PK&gt;&gt;
+ nombreRuta: string
+ descripcionRuta : text [0..1]
+ duracionEstimada: int
+ distanciaEstimada: decimal
+ estadoRuta: boolean</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1500</x>
+      <y>260</y>
+      <w>250</w>
+      <h>150</h>
+    </coordinates>
+    <panel_attributes>RUTA_OBRA
+--
+ idRutaObra: string &lt;&lt;PK&gt;&gt;
+ ordenVisita: int
+ recomendacion : text [0..1]
+ tiempoPermanencia: int
+
+ idRutaFK : string &lt;&lt;FK&gt;&gt;
+ idObraFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1120</x>
+      <y>470</y>
+      <w>250</w>
+      <h>190</h>
+    </coordinates>
+    <panel_attributes>RECURSO_MULTIMEDIA
+--
+ idRecurso &lt;&lt;PK&gt;&gt;: string
+ nombreRecurso: string
+ descripcionRecurso : text [0..1]
+ rutaArchivo: string
+ tamanio: decimal
+ duracion : int [0..1]
+ fechaRegistroRecurso: date
+
+ idFormatoFK : string &lt;&lt;FK&gt;&gt;
+ idObraFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1500</x>
+      <y>520</y>
+      <w>250</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>TIPO_RECURSO
+--
+ idTipoRecurso : string &lt;&lt;PK&gt;&gt;
+ nombreTipoRecurso: string
+ carpetaBase: string</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>UMLClass</id>
+    <coordinates>
+      <x>1500</x>
+      <y>710</y>
+      <w>250</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>FORMATO_RECURSO
+--
+ idFormato &lt;&lt;PK&gt;&gt;: string
+ extension: string
+
+ idTipoRecursoFK : string &lt;&lt;FK&gt;&gt;</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>240</x>
+      <y>65</y>
+      <w>160</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+cuenta con &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;140.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>240</x>
+      <y>305</y>
+      <w>160</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+esta presente en &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;140.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>240</x>
+      <y>585</y>
+      <w>160</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+cuenta con varios &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;140.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>620</x>
+      <y>585</y>
+      <w>160</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+permite &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;140.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>620</x>
+      <y>120</y>
+      <w>280</w>
+      <h>130</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+es quien crea &gt;</panel_attributes>
+    <additional_attributes>10.0;10.0;260.0;10.0;260.0;110.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>620</x>
+      <y>330</y>
+      <w>160</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+registra &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;140.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>875</x>
+      <y>430</y>
+      <w>80</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+tiene ^</panel_attributes>
+    <additional_attributes>10.0;100.0;10.0;10.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1000</x>
+      <y>140</y>
+      <w>265</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+representa v</panel_attributes>
+    <additional_attributes>245.0;10.0;245.0;140.0;10.0;140.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1000</x>
+      <y>315</y>
+      <w>520</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+participa &gt;</panel_attributes>
+    <additional_attributes>10.0;20.0;500.0;20.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1615</x>
+      <y>170</y>
+      <w>90</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+contiene v</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;90.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1000</x>
+      <y>380</y>
+      <w>265</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+posee &gt;</panel_attributes>
+    <additional_attributes>10.0;10.0;245.0;10.0;245.0;90.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1615</x>
+      <y>620</y>
+      <w>90</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+agrupa v</panel_attributes>
+    <additional_attributes>10.0;10.0;10.0;90.0</additional_attributes>
+  </element>
+  <element>
+    <id>Relation</id>
+    <coordinates>
+      <x>1235</x>
+      <y>650</y>
+      <w>285</w>
+      <h>135</h>
+    </coordinates>
+    <panel_attributes>lt=-
+m1=1..1
+m2=1..*
+describe ^</panel_attributes>
+    <additional_attributes>265.0;115.0;10.0;115.0;10.0;10.0</additional_attributes>
+  </element>
+</diagram>
