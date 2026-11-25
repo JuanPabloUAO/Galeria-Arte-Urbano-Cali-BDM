@@ -1,891 +1,943 @@
--- =====================================================================
---  Galería de Arte Urbano de Cali — SCRIPT COMPLETO (01 + 02 + 03 + 04 en un solo archivo)
---  Generado uniendo los cuatro scripts de esta carpeta. Ejecutarlo completo en MySQL Workbench.
--- =====================================================================
+-- =============================================================================
+-- PROYECTO DE CURSO: GALERÍA DE ARTE URBANO DE CALI (ESTRUCTURA DDL EN 3FN)
+-- Asignatura: Bases de Datos Multimedia (BDM) - Grupo 51
+-- Universidad Autónoma de Occidente (UAO) - Facultad de Ingeniería
+-- Integrantes: Juan Pablo Campo Bertin (2235544) · Jean Deiby García
+-- Docente: David Alejandro Castro Benavides
+-- Motor: MySQL 8.0+
+-- =============================================================================
 
-
--- =====================================================================
---  Galería de Arte Urbano de Cali
---  Etapa 5 — Script 01: Estructura (base de datos, tablas y restricciones)
---  Motor: MySQL 8.0.16 o superior (requiere CHECK y DEFAULT (UUID()))
---  Integrantes: Juan Pablo Campo Bertin · Jean Deiby Garcia
---  Orden de ejecución: 01_estructura.sql → 02_datos_prueba.sql → 03_vistas_procedimientos_indices.sql → 04_consultas.sql
--- =====================================================================
-
-SET NAMES utf8mb4;   -- la conexión envía tildes y ñ correctamente
-DROP DATABASE IF EXISTS galeria_arte_urbano_cali;
-CREATE DATABASE galeria_arte_urbano_cali
+CREATE DATABASE IF NOT EXISTS `galeria_arte_urbano_db`
     CHARACTER SET utf8mb4
-    COLLATE utf8mb4_0900_ai_ci;   -- ai = insensible a tildes: 'Grafiti' y 'Grafíti' se consideran duplicados
+    COLLATE utf8mb4_unicode_ci;
 
-USE galeria_arte_urbano_cali;
+USE `galeria_arte_urbano_db`;
 
--- ---------------------------------------------------------------------
--- 1. USUARIO: personas con acceso a la aplicación
--- ---------------------------------------------------------------------
-CREATE TABLE usuario (
-    id_usuario      CHAR(36)     NOT NULL DEFAULT (UUID()),
-    nombre          VARCHAR(50)  NOT NULL,
-    apellido        VARCHAR(50)  NOT NULL,
-    correo          VARCHAR(100) NOT NULL,
-    password_hash   VARCHAR(255) NOT NULL,
-    tipo_usuario    VARCHAR(20)  NOT NULL DEFAULT 'VISITANTE',
-    fecha_registro  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    estado          VARCHAR(10)  NOT NULL DEFAULT 'ACTIVO',
-    CONSTRAINT pk_usuario          PRIMARY KEY (id_usuario),
-    CONSTRAINT uq_usuario_correo   UNIQUE (correo),
-    CONSTRAINT ck_usuario_nombre   CHECK (TRIM(nombre) <> '' AND TRIM(apellido) <> ''),
-    CONSTRAINT ck_usuario_correo   CHECK (correo LIKE '%_@_%._%'),
-    -- Regla 7: la contraseña nunca en texto plano. Solo se acepta un hash BCrypt ($2a$/$2b$/$2y$, 60 caracteres)
-    CONSTRAINT ck_usuario_hash     CHECK (password_hash REGEXP '^\\$2[aby]\\$[0-9]{2}\\$.{53}$'),
-    CONSTRAINT ck_usuario_tipo     CHECK (tipo_usuario IN ('ADMINISTRADOR', 'VISITANTE')),
-    CONSTRAINT ck_usuario_estado   CHECK (estado IN ('ACTIVO', 'INACTIVO'))
-) ENGINE = InnoDB;
+-- Eliminación previa en orden inverso de dependencias
+DROP VIEW IF EXISTS `vw_estadisticas_culturales_comuna`;
+DROP VIEW IF EXISTS `vw_obras_resumen_multimedia`;
+DROP VIEW IF EXISTS `vw_rutas_itinerario_detallado`;
+DROP VIEW IF EXISTS `vw_catalogo_obras_completo`;
 
--- ---------------------------------------------------------------------
--- 2. ARTISTA: autores de las obras (borrado lógico si tiene obras)
--- ---------------------------------------------------------------------
-CREATE TABLE artista (
-    id_artista        CHAR(36)     NOT NULL DEFAULT (UUID()),
-    nombre_artistico  VARCHAR(100) NOT NULL,
-    nombre_real       VARCHAR(100) NULL,
-    biografia         TEXT         NULL,
-    pais_origen       VARCHAR(60)  NOT NULL DEFAULT 'Colombia',
-    red_social        VARCHAR(150) NULL,
-    estado            VARCHAR(10)  NOT NULL DEFAULT 'ACTIVO',
-    CONSTRAINT pk_artista            PRIMARY KEY (id_artista),
-    CONSTRAINT uq_artista_nombre     UNIQUE (nombre_artistico),
-    CONSTRAINT ck_artista_nombre     CHECK (TRIM(nombre_artistico) <> ''),
-    CONSTRAINT ck_artista_red        CHECK (red_social IS NULL OR red_social LIKE 'http%' OR red_social LIKE '@%'),
-    CONSTRAINT ck_artista_estado     CHECK (estado IN ('ACTIVO', 'INACTIVO'))
-) ENGINE = InnoDB;
+DROP PROCEDURE IF EXISTS `sp_asignar_obra_a_ruta`;
+DROP PROCEDURE IF EXISTS `sp_registrar_obra_con_recurso_principal`;
+DROP PROCEDURE IF EXISTS `sp_asociar_recurso_multimedia`;
+DROP PROCEDURE IF EXISTS `sp_registrar_obra`;
 
--- ---------------------------------------------------------------------
--- 3. CATEGORIA: clasificación técnica o temática
--- ---------------------------------------------------------------------
-CREATE TABLE categoria (
-    id_categoria  CHAR(36)    NOT NULL DEFAULT (UUID()),
-    nombre        VARCHAR(50) NOT NULL,
-    descripcion   TEXT        NULL,
-    estado        VARCHAR(10) NOT NULL DEFAULT 'ACTIVO',
-    CONSTRAINT pk_categoria         PRIMARY KEY (id_categoria),
-    CONSTRAINT uq_categoria_nombre  UNIQUE (nombre),
-    CONSTRAINT ck_categoria_nombre  CHECK (TRIM(nombre) <> ''),
-    CONSTRAINT ck_categoria_estado  CHECK (estado IN ('ACTIVO', 'INACTIVO'))
-) ENGINE = InnoDB;
+-- Limpieza tanto de nombres en singular (oficiales MER/MRD) como plurales previos
+DROP TABLE IF EXISTS `recurso_multimedia`;
+DROP TABLE IF EXISTS `recursos_multimedia`;
+DROP TABLE IF EXISTS `ruta_obra`;
+DROP TABLE IF EXISTS `rutas_obras`;
+DROP TABLE IF EXISTS `ruta`;
+DROP TABLE IF EXISTS `rutas`;
+DROP TABLE IF EXISTS `obra`;
+DROP TABLE IF EXISTS `obras`;
+DROP TABLE IF EXISTS `artista`;
+DROP TABLE IF EXISTS `artistas`;
+DROP TABLE IF EXISTS `usuario`;
+DROP TABLE IF EXISTS `usuarios`;
+DROP TABLE IF EXISTS `formato_recurso`;
+DROP TABLE IF EXISTS `formatos_recurso`;
+DROP TABLE IF EXISTS `tipo_recurso`;
+DROP TABLE IF EXISTS `tipos_recurso`;
+DROP TABLE IF EXISTS `categoria`;
+DROP TABLE IF EXISTS `categorias`;
+DROP TABLE IF EXISTS `ubicacion`;
+DROP TABLE IF EXISTS `ubicaciones`;
+DROP TABLE IF EXISTS `barrio`;
+DROP TABLE IF EXISTS `barrios`;
+DROP TABLE IF EXISTS `comuna`;
+DROP TABLE IF EXISTS `comunas`;
+DROP TABLE IF EXISTS `tipo_usuario`;
+DROP TABLE IF EXISTS `tipos_usuario`;
+DROP TABLE IF EXISTS `pais`;
+DROP TABLE IF EXISTS `paises`;
 
--- ---------------------------------------------------------------------
--- 4. BARRIO (nueva en 3FN): elimina la dependencia transitiva barrio → comuna
--- ---------------------------------------------------------------------
-CREATE TABLE barrio (
-    id_barrio  INT UNSIGNED     NOT NULL AUTO_INCREMENT,
-    nombre     VARCHAR(60)      NOT NULL,
-    comuna     TINYINT UNSIGNED NOT NULL,
-    CONSTRAINT pk_barrio         PRIMARY KEY (id_barrio),
-    CONSTRAINT uq_barrio_nombre  UNIQUE (nombre),
-    CONSTRAINT ck_barrio_comuna  CHECK (comuna BETWEEN 1 AND 22)
-) ENGINE = InnoDB;
+-- =============================================================================
+-- 1. CREACIÓN DE LAS 14 TABLAS EN 3FN (NOMBRES EN SINGULAR IGUALES AL MER Y MRD)
+-- =============================================================================
 
--- ---------------------------------------------------------------------
--- 5. UBICACION: lugar físico donde está la obra
--- ---------------------------------------------------------------------
-CREATE TABLE ubicacion (
-    id_ubicacion  CHAR(36)      NOT NULL DEFAULT (UUID()),
-    nombre_lugar  VARCHAR(100)  NOT NULL,
-    direccion     VARCHAR(120)  NOT NULL,
-    id_barrioFK   INT UNSIGNED  NOT NULL,
-    latitud       DECIMAL(10,8) NOT NULL,
-    longitud      DECIMAL(11,8) NOT NULL,
-    CONSTRAINT pk_ubicacion            PRIMARY KEY (id_ubicacion),
-    CONSTRAINT uq_ubicacion_lugar_dir  UNIQUE (nombre_lugar, direccion),
-    CONSTRAINT ck_ubicacion_textos     CHECK (TRIM(nombre_lugar) <> '' AND TRIM(direccion) <> ''),
-    -- RN-06: coordenadas dentro del área de Cali
-    CONSTRAINT ck_ubicacion_latitud    CHECK (latitud  BETWEEN 3.25   AND 3.55),
-    CONSTRAINT ck_ubicacion_longitud   CHECK (longitud BETWEEN -76.60 AND -76.45),
-    CONSTRAINT fk_ubicacion_barrio     FOREIGN KEY (id_barrioFK) REFERENCES barrio (id_barrio)
+-- 1. PAIS
+CREATE TABLE `pais` (
+    `idPais`        CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombrePais`    VARCHAR(60)     NOT NULL,
+
+    PRIMARY KEY (`idPais`),
+    UNIQUE KEY `uk_pais_nombre` (`nombrePais`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. TIPO_USUARIO
+CREATE TABLE `tipo_usuario` (
+    `idTipoUsuario`     CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreTipoUsuario` VARCHAR(45)     NOT NULL,
+
+    PRIMARY KEY (`idTipoUsuario`),
+    UNIQUE KEY `uk_tipo_usuario_nombre` (`nombreTipoUsuario`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. COMUNA
+CREATE TABLE `comuna` (
+    `idComuna`      CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `numeroComuna`  INT             NOT NULL,
+
+    PRIMARY KEY (`idComuna`),
+    UNIQUE KEY `uk_comuna_numero` (`numeroComuna`),
+    CONSTRAINT `chk_comuna_rango` CHECK (`numeroComuna` BETWEEN 1 AND 22)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. BARRIO
+CREATE TABLE `barrio` (
+    `idBarrio`      CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreBarrio`  VARCHAR(80)     NOT NULL,
+    `idComunaFK`    CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idBarrio`),
+    UNIQUE KEY `uk_barrio_nombre_comuna` (`nombreBarrio`, `idComunaFK`),
+    KEY `fk_barrio_comuna_idx` (`idComunaFK`),
+    CONSTRAINT `fk_barrio_comuna`
+        FOREIGN KEY (`idComunaFK`) REFERENCES `comuna` (`idComuna`)
         ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE = InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 6. OBRA: entidad central
--- ---------------------------------------------------------------------
-CREATE TABLE obra (
-    id_obra              CHAR(36)     NOT NULL DEFAULT (UUID()),
-    nombre               VARCHAR(120) NOT NULL,
-    descripcion          TEXT         NOT NULL,
-    fecha_creacion       DATE         NULL,
-    estado_conservacion  VARCHAR(15)  NOT NULL DEFAULT 'BUENO',
-    fecha_registro       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    id_artistaFK         CHAR(36)     NOT NULL,
-    id_categoriaFK       CHAR(36)     NOT NULL,
-    id_ubicacionFK       CHAR(36)     NOT NULL,
-    id_usuarioFK         CHAR(36)     NOT NULL,
-    CONSTRAINT pk_obra                 PRIMARY KEY (id_obra),
-    -- Evita duplicados: no puede haber dos obras con el mismo nombre en el mismo lugar
-    CONSTRAINT uq_obra_ubicacion_nombre UNIQUE (id_ubicacionFK, nombre),
-    CONSTRAINT ck_obra_nombre          CHECK (TRIM(nombre) <> ''),
-    CONSTRAINT ck_obra_estado          CHECK (estado_conservacion IN ('EXCELENTE', 'BUENO', 'DETERIORADO', 'DESTRUIDO')),
-    CONSTRAINT ck_obra_fechas          CHECK (fecha_creacion IS NULL OR
-                                              (fecha_creacion >= '1950-01-01' AND fecha_creacion <= DATE(fecha_registro))),
-    -- RN-02: no se borra un artista/categoría/ubicación/usuario que tenga obras
-    CONSTRAINT fk_obra_artista    FOREIGN KEY (id_artistaFK)   REFERENCES artista   (id_artista)
-        ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT fk_obra_categoria  FOREIGN KEY (id_categoriaFK) REFERENCES categoria (id_categoria)
-        ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT fk_obra_ubicacion  FOREIGN KEY (id_ubicacionFK) REFERENCES ubicacion (id_ubicacion)
-        ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT fk_obra_usuario    FOREIGN KEY (id_usuarioFK)   REFERENCES usuario   (id_usuario)
+-- 5. UBICACION
+CREATE TABLE `ubicacion` (
+    `idUbicacion`   CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreLugar`   VARCHAR(100)    NOT NULL,
+    `direccion`     VARCHAR(120)    NOT NULL,
+    `latitud`       DECIMAL(10, 8)  NOT NULL,
+    `longitud`      DECIMAL(11, 8)  NOT NULL,
+    `idBarrioFK`    CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idUbicacion`),
+    KEY `fk_ubicacion_barrio_idx` (`idBarrioFK`),
+    CONSTRAINT `chk_ubicacion_latitud` CHECK (`latitud` BETWEEN 3.25000000 AND 3.55000000),
+    CONSTRAINT `chk_ubicacion_longitud` CHECK (`longitud` BETWEEN -76.60000000 AND -76.45000000),
+    CONSTRAINT `fk_ubicacion_barrio`
+        FOREIGN KEY (`idBarrioFK`) REFERENCES `barrio` (`idBarrio`)
         ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE = InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 7. FORMATO_MULTIMEDIA (nueva en 3FN): elimina la dependencia formato → tipo_recurso
--- ---------------------------------------------------------------------
-CREATE TABLE formato_multimedia (
-    codigo_formato  VARCHAR(10)  NOT NULL,
-    tipo_recurso    VARCHAR(15)  NOT NULL,
-    mime_type       VARCHAR(60)  NOT NULL,
-    descripcion     VARCHAR(150) NULL,
-    CONSTRAINT pk_formato        PRIMARY KEY (codigo_formato),
-    CONSTRAINT ck_formato_codigo CHECK (codigo_formato = UPPER(codigo_formato) AND TRIM(codigo_formato) <> ''),
-    CONSTRAINT ck_formato_tipo   CHECK (tipo_recurso IN ('IMAGEN', 'VIDEO', 'AUDIO', 'MODELO_3D', 'AR'))
-) ENGINE = InnoDB;
+-- 6. CATEGORIA
+CREATE TABLE `categoria` (
+    `idCategoria`           CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreCategoria`       VARCHAR(60)     NOT NULL,
+    `descripcionCategoria`  TEXT            NULL,
+    `estadoCategoria`       BOOLEAN         NOT NULL DEFAULT TRUE,
 
--- ---------------------------------------------------------------------
--- 8. RECURSO_MULTIMEDIA: metadatos del archivo (el archivo vive en disco, no en MySQL)
--- ---------------------------------------------------------------------
-CREATE TABLE recurso_multimedia (
-    id_recurso         CHAR(36)        NOT NULL DEFAULT (UUID()),
-    nombre             VARCHAR(100)    NOT NULL,
-    descripcion        TEXT            NULL,
-    ruta_archivo       VARCHAR(255)    NOT NULL,
-    codigo_formatoFK   VARCHAR(10)     NOT NULL,
-    tamano_bytes       BIGINT UNSIGNED NOT NULL,
-    duracion_segundos  INT UNSIGNED    NULL,
-    fecha_registro     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    id_obraFK          CHAR(36)        NOT NULL,
-    CONSTRAINT pk_recurso           PRIMARY KEY (id_recurso),
-    CONSTRAINT uq_recurso_ruta      UNIQUE (ruta_archivo),
-    CONSTRAINT ck_recurso_nombre    CHECK (TRIM(nombre) <> ''),
-    -- La ruta debe ser RELATIVA a RecursosMultimedia/: sin unidad (C:), sin raíz (/ o \) y sin '..'
-    CONSTRAINT ck_recurso_ruta_rel  CHECK (ruta_archivo NOT LIKE '%:%'
-                                       AND ruta_archivo NOT LIKE '/%'
-                                       AND ruta_archivo NOT LIKE '\\\\%'
-                                       AND ruta_archivo NOT LIKE '%..%'),
-    CONSTRAINT ck_recurso_tamano    CHECK (tamano_bytes > 0),
-    CONSTRAINT ck_recurso_duracion  CHECK (duracion_segundos IS NULL OR duracion_segundos > 0),
-    CONSTRAINT fk_recurso_formato   FOREIGN KEY (codigo_formatoFK) REFERENCES formato_multimedia (codigo_formato)
+    PRIMARY KEY (`idCategoria`),
+    UNIQUE KEY `uk_categoria_nombre` (`nombreCategoria`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7. TIPO_RECURSO
+CREATE TABLE `tipo_recurso` (
+    `idTipoRecurso`     CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreTipoRecurso` VARCHAR(45)     NOT NULL,
+    `carpetaBase`       VARCHAR(100)    NOT NULL,
+
+    PRIMARY KEY (`idTipoRecurso`),
+    UNIQUE KEY `uk_tipo_recurso_nombre` (`nombreTipoRecurso`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. FORMATO_RECURSO
+CREATE TABLE `formato_recurso` (
+    `idFormato`         CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `extension`         VARCHAR(15)     NOT NULL,
+    `idTipoRecursoFK`   CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idFormato`),
+    UNIQUE KEY `uk_formato_extension` (`extension`),
+    KEY `fk_formato_tipo_recurso_idx` (`idTipoRecursoFK`),
+    CONSTRAINT `fk_formato_tipo_recurso`
+        FOREIGN KEY (`idTipoRecursoFK`) REFERENCES `tipo_recurso` (`idTipoRecurso`)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 9. USUARIO
+CREATE TABLE `usuario` (
+    `idUsuario`             CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombre1Usuario`        VARCHAR(45)     NOT NULL,
+    `nombre2Usuario`        VARCHAR(45)     NULL,
+    `apellido1Usuario`      VARCHAR(45)     NOT NULL,
+    `apellido2Usuario`      VARCHAR(45)     NULL,
+    `correoUsuario`         VARCHAR(100)    NOT NULL,
+    `contrasenaHash`        VARCHAR(255)    NOT NULL,
+    `fechaRegistroUsuario`  DATE            NOT NULL DEFAULT (CURRENT_DATE),
+    `estadoUsuario`         BOOLEAN         NOT NULL DEFAULT TRUE,
+    `idTipoUsuarioFK`       CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idUsuario`),
+    UNIQUE KEY `uk_usuario_correo` (`correoUsuario`),
+    KEY `fk_usuario_tipo_usuario_idx` (`idTipoUsuarioFK`),
+    CONSTRAINT `chk_usuario_correo` CHECK (`correoUsuario` LIKE '%@%.%'),
+    CONSTRAINT `fk_usuario_tipo_usuario`
+        FOREIGN KEY (`idTipoUsuarioFK`) REFERENCES `tipo_usuario` (`idTipoUsuario`)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 10. ARTISTA
+CREATE TABLE `artista` (
+    `idArtista`         CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreArtistico`   VARCHAR(100)    NOT NULL,
+    `nombre1Real`       VARCHAR(45)     NOT NULL,
+    `nombre2Real`       VARCHAR(45)     NULL,
+    `apellido1Real`     VARCHAR(45)     NOT NULL,
+    `apellido2Real`     VARCHAR(45)     NULL,
+    `biografia`         TEXT            NULL,
+    `perfilRedSocial`   VARCHAR(150)    NULL,
+    `estadoArtista`     BOOLEAN         NOT NULL DEFAULT TRUE,
+    `idPaisFK`          CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idArtista`),
+    UNIQUE KEY `uk_artista_nombre_artistico` (`nombreArtistico`),
+    KEY `fk_artista_pais_idx` (`idPaisFK`),
+    CONSTRAINT `fk_artista_pais`
+        FOREIGN KEY (`idPaisFK`) REFERENCES `pais` (`idPais`)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 11. OBRA
+CREATE TABLE `obra` (
+    `idObra`                CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreObra`            VARCHAR(120)    NOT NULL,
+    `descripcionObra`       TEXT            NULL,
+    `fechaCreacion`         DATE            NOT NULL,
+    `estadoConservacion`    VARCHAR(30)     NOT NULL,
+    `fechaRegistroObra`     DATE            NOT NULL DEFAULT (CURRENT_DATE),
+    `idArtistaFK`           CHAR(36)        NOT NULL,
+    `idCategoriaFK`         CHAR(36)        NOT NULL,
+    `idUbicacionFK`         CHAR(36)        NOT NULL,
+    `idUsuarioFK`           CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idObra`),
+    KEY `fk_obra_artista_idx` (`idArtistaFK`),
+    KEY `fk_obra_categoria_idx` (`idCategoriaFK`),
+    KEY `fk_obra_ubicacion_idx` (`idUbicacionFK`),
+    KEY `fk_obra_usuario_idx` (`idUsuarioFK`),
+    CONSTRAINT `chk_obra_estado_conservacion` CHECK (
+        `estadoConservacion` IN ('Excelente', 'Bueno', 'Regular', 'Deteriorado', 'Destruido')
+    ),
+    CONSTRAINT `fk_obra_artista`
+        FOREIGN KEY (`idArtistaFK`) REFERENCES `artista` (`idArtista`)
         ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT fk_recurso_obra      FOREIGN KEY (id_obraFK) REFERENCES obra (id_obra)
-        ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB;
+    CONSTRAINT `fk_obra_categoria`
+        FOREIGN KEY (`idCategoriaFK`) REFERENCES `categoria` (`idCategoria`)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT `fk_obra_ubicacion`
+        FOREIGN KEY (`idUbicacionFK`) REFERENCES `ubicacion` (`idUbicacion`)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT `fk_obra_usuario`
+        FOREIGN KEY (`idUsuarioFK`) REFERENCES `usuario` (`idUsuario`)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 9. RUTA: recorrido compuesto por varias obras
--- ---------------------------------------------------------------------
-CREATE TABLE ruta (
-    id_ruta                CHAR(36)          NOT NULL DEFAULT (UUID()),
-    nombre                 VARCHAR(100)      NOT NULL,
-    descripcion            TEXT              NOT NULL,
-    duracion_estimada_min  SMALLINT UNSIGNED NOT NULL,
-    distancia_estimada_km  DECIMAL(5,2)      NOT NULL,
-    estado                 VARCHAR(20)       NOT NULL DEFAULT 'ACTIVO',
-    CONSTRAINT pk_ruta            PRIMARY KEY (id_ruta),
-    CONSTRAINT uq_ruta_nombre     UNIQUE (nombre),
-    CONSTRAINT ck_ruta_nombre     CHECK (TRIM(nombre) <> ''),
-    CONSTRAINT ck_ruta_duracion   CHECK (duracion_estimada_min > 0),
-    CONSTRAINT ck_ruta_distancia  CHECK (distancia_estimada_km > 0),
-    CONSTRAINT ck_ruta_estado     CHECK (estado IN ('ACTIVO', 'INACTIVO', 'EN_MANTENIMIENTO'))
-) ENGINE = InnoDB;
+-- 12. RUTA
+CREATE TABLE `ruta` (
+    `idRuta`            CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreRuta`        VARCHAR(100)    NOT NULL,
+    `descripcionRuta`   TEXT            NULL,
+    `duracionEstimada`  INT             NOT NULL,
+    `distanciaEstimada` DECIMAL(6, 2)   NOT NULL,
+    `estadoRuta`        BOOLEAN         NOT NULL DEFAULT TRUE,
 
--- ---------------------------------------------------------------------
--- 10. RUTA_OBRA: entidad asociativa que resuelve la relación M:N Ruta–Obra
--- ---------------------------------------------------------------------
-CREATE TABLE ruta_obra (
-    id_ruta_obra         CHAR(36)          NOT NULL DEFAULT (UUID()),
-    id_rutaFK            CHAR(36)          NOT NULL,
-    id_obraFK            CHAR(36)          NOT NULL,
-    orden_visita         SMALLINT UNSIGNED NOT NULL,
-    tiempo_estimado_min  SMALLINT UNSIGNED NOT NULL DEFAULT 10,
-    recomendacion        TEXT              NULL,
-    CONSTRAINT pk_ruta_obra         PRIMARY KEY (id_ruta_obra),
-    CONSTRAINT uq_ruta_obra_obra    UNIQUE (id_rutaFK, id_obraFK),     -- una obra no se repite en la ruta
-    CONSTRAINT uq_ruta_obra_orden   UNIQUE (id_rutaFK, orden_visita),  -- el orden no se repite en la ruta
-    CONSTRAINT ck_ruta_obra_orden   CHECK (orden_visita > 0),
-    CONSTRAINT ck_ruta_obra_tiempo  CHECK (tiempo_estimado_min > 0),
-    CONSTRAINT fk_ruta_obra_ruta    FOREIGN KEY (id_rutaFK) REFERENCES ruta (id_ruta)
+    PRIMARY KEY (`idRuta`),
+    UNIQUE KEY `uk_ruta_nombre` (`nombreRuta`),
+    CONSTRAINT `chk_ruta_duracion` CHECK (`duracionEstimada` > 0),
+    CONSTRAINT `chk_ruta_distancia` CHECK (`distanciaEstimada` > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 13. RUTA_OBRA
+CREATE TABLE `ruta_obra` (
+    `idRutaObra`        CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `ordenVisita`       INT             NOT NULL,
+    `recomendacion`     TEXT            NULL,
+    `tiempoPermanencia` INT             NOT NULL DEFAULT 15,
+    `idRutaFK`          CHAR(36)        NOT NULL,
+    `idObraFK`          CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idRutaObra`),
+    UNIQUE KEY `uk_ruta_obra_parada` (`idRutaFK`, `idObraFK`),
+    UNIQUE KEY `uk_ruta_obra_orden` (`idRutaFK`, `ordenVisita`),
+    KEY `fk_ruta_obra_ruta_idx` (`idRutaFK`),
+    KEY `fk_ruta_obra_obra_idx` (`idObraFK`),
+    CONSTRAINT `chk_ruta_obra_orden` CHECK (`ordenVisita` > 0),
+    CONSTRAINT `chk_ruta_obra_tiempo` CHECK (`tiempoPermanencia` > 0),
+    CONSTRAINT `fk_ruta_obra_ruta`
+        FOREIGN KEY (`idRutaFK`) REFERENCES `ruta` (`idRuta`)
         ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_ruta_obra_obra    FOREIGN KEY (id_obraFK) REFERENCES obra (id_obra)
+    CONSTRAINT `fk_ruta_obra_obra`
+        FOREIGN KEY (`idObraFK`) REFERENCES `obra` (`idObra`)
         ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE = InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 14. RECURSO_MULTIMEDIA
+CREATE TABLE `recurso_multimedia` (
+    `idRecurso`             CHAR(36)        NOT NULL DEFAULT (UUID()),
+    `nombreRecurso`         VARCHAR(100)    NOT NULL,
+    `descripcionRecurso`    TEXT            NULL,
+    `rutaArchivo`           VARCHAR(255)    NOT NULL,
+    `tamanio`               DECIMAL(12, 2)  NOT NULL,
+    `duracion`              INT             NULL,
+    `fechaRegistroRecurso`  DATE            NOT NULL DEFAULT (CURRENT_DATE),
+    `idFormatoFK`           CHAR(36)        NOT NULL,
+    `idObraFK`              CHAR(36)        NOT NULL,
+
+    PRIMARY KEY (`idRecurso`),
+    KEY `fk_recurso_formato_idx` (`idFormatoFK`),
+    KEY `fk_recurso_obra_idx` (`idObraFK`),
+    CONSTRAINT `chk_recurso_tamanio` CHECK (`tamanio` > 0),
+    CONSTRAINT `chk_recurso_duracion` CHECK (`duracion` IS NULL OR `duracion` > 0),
+    CONSTRAINT `chk_recurso_ruta_relativa` CHECK (
+        `rutaArchivo` NOT LIKE 'C:%' AND `rutaArchivo` NOT LIKE '/%' AND `rutaArchivo` NOT LIKE '\\%'
+    ),
+    CONSTRAINT `fk_recurso_formato`
+        FOREIGN KEY (`idFormatoFK`) REFERENCES `formato_recurso` (`idFormato`)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT `fk_recurso_obra`
+        FOREIGN KEY (`idObraFK`) REFERENCES `obra` (`idObra`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- =====================================================================
---  Galería de Arte Urbano de Cali
---  Etapa 5 — Script 02: Datos de prueba
---  Requisito mínimo: 5 artistas, 5 categorías, 10 obras, 3 rutas, 15 recursos.
---  Este script carga: 3 usuarios, 7 artistas, 6 categorías, 9 barrios, 10 ubicaciones,
---                     6 formatos, 12 obras, 18 recursos, 3 rutas y 13 paradas de ruta.
---
---  Los UUID son fijos (no generados con UUID()) para que el script sea repetible y
---  las llaves foráneas sean legibles. El prefijo indica la tabla:
---  1=usuario 2=artista 3=categoria 4=ubicacion 5=obra 6=recurso 7=ruta 8=ruta_obra
---  Las personas, artistas y obras son FICTICIOS; los barrios y comunas son de Cali.
--- =====================================================================
-SET NAMES utf8mb4;   -- la conexión envía tildes y ñ correctamente
-USE galeria_arte_urbano_cali;
+-- =============================================================================
+-- 2. ÍNDICES ADICIONALES JUSTIFICADOS POR LAS CONSULTAS QUE MEJORAN
+-- =============================================================================
 
--- ---------------------------------------------------------------------
--- USUARIOS  (contraseñas guardadas como hash BCrypt, nunca en texto plano)
---   admin@galeriacali.co      / Admin123*      → ADMINISTRADOR
---   editora@galeriacali.co    / Editor123*     → ADMINISTRADOR
---   visitante@galeriacali.co  / Visitante123*  → VISITANTE
--- ---------------------------------------------------------------------
-INSERT INTO usuario (id_usuario, nombre, apellido, correo, password_hash, tipo_usuario, estado) VALUES
-('10000000-0000-4000-8000-000000000001', 'Juan Pablo', 'Campo Bertin', 'admin@galeriacali.co',
- '$2a$11$QyjN9.GvekjF8FH13KCmMuOqJJrfJtCobI5u4UuObyIRAK5iXzrkG', 'ADMINISTRADOR', 'ACTIVO'),
-('10000000-0000-4000-8000-000000000002', 'Jean Deiby', 'Garcia', 'editora@galeriacali.co',
- '$2a$11$5iHaVPoA0IRhX2XBlcC8Qe7clge6/0C7msAukjWlF2kprbqJIfnLS', 'ADMINISTRADOR', 'ACTIVO'),
-('10000000-0000-4000-8000-000000000003', 'Valentina', 'Rojas', 'visitante@galeriacali.co',
- '$2a$11$oRGb0fBOPgghHvqkhfvo.uh.5nVKP03jnFxFejsVED/V1COtDOwTy', 'VISITANTE', 'ACTIVO');
+-- Mejora las consultas de obras filtradas por categoría técnica y estado de conservación
+CREATE INDEX `idx_obra_categoria_estado`
+    ON `obra` (`idCategoriaFK`, `estadoConservacion`);
 
--- ---------------------------------------------------------------------
--- ARTISTAS (7; "Lienzo Errante" no tiene obras → se puede eliminar físicamente)
--- ---------------------------------------------------------------------
-INSERT INTO artista (id_artista, nombre_artistico, nombre_real, biografia, pais_origen, red_social, estado) VALUES
-('20000000-0000-4000-8000-000000000001', 'Kromo Salsa', 'Andrés Felipe Ortiz',
- 'Muralista caleño que mezcla la iconografía de la salsa con el paisaje del río Cali.', 'Colombia', 'https://instagram.com/kromosalsa', 'ACTIVO'),
-('20000000-0000-4000-8000-000000000002', 'Colectivo La Ceiba', NULL,
- 'Colectivo de jóvenes artistas de ladera que trabaja procesos comunitarios de muralismo.', 'Colombia', '@colectivolaceiba', 'ACTIVO'),
-('20000000-0000-4000-8000-000000000003', 'Nébula Andina', 'Laura Ximena Ríos',
- 'Artista de lettering y grafiti con influencias de la tipografía popular de los buses.', 'Colombia', 'https://behance.net/nebulaandina', 'ACTIVO'),
-('20000000-0000-4000-8000-000000000004', 'Trazo Pacífico', 'Yesid Mosquera',
- 'Pintor de Buenaventura radicado en Cali; retrata la cultura afro del Pacífico.', 'Colombia', NULL, 'ACTIVO'),
-('20000000-0000-4000-8000-000000000005', 'Mano Zurda', 'Diego Paredes',
- 'Stencilista quiteño invitado al festival de arte urbano de Cali.', 'Ecuador', '@manozurda', 'ACTIVO'),
-('20000000-0000-4000-8000-000000000006', 'Tinta Ladera', 'Camila Hurtado',
- 'Retratista que pinta a los habitantes de los barrios donde interviene.', 'Colombia', '@tintaladera', 'ACTIVO'),
-('20000000-0000-4000-8000-000000000007', 'Lienzo Errante', NULL,
- 'Artista itinerante registrado para un próximo festival; aún sin obras en Cali.', 'Argentina', NULL, 'ACTIVO');
+-- Mejora la consulta de recursos multimedia asociados a una obra y su unión con formato_recurso
+CREATE INDEX `idx_recurso_obra_formato`
+    ON `recurso_multimedia` (`idObraFK`, `idFormatoFK`);
 
--- ---------------------------------------------------------------------
--- CATEGORÍAS (6; "Paste-up" está INACTIVA y sin obras)
--- ---------------------------------------------------------------------
-INSERT INTO categoria (id_categoria, nombre, descripcion, estado) VALUES
-('30000000-0000-4000-8000-000000000001', 'Muralismo',        'Pintura de gran formato sobre muros, generalmente con permiso.', 'ACTIVO'),
-('30000000-0000-4000-8000-000000000002', 'Grafiti',          'Intervención con aerosol basada en letras, firmas o personajes.', 'ACTIVO'),
-('30000000-0000-4000-8000-000000000003', 'Stencil',          'Técnica de plantilla recortada que permite reproducir la imagen.', 'ACTIVO'),
-('30000000-0000-4000-8000-000000000004', 'Retrato',          'Representación de personas reales o simbólicas del territorio.', 'ACTIVO'),
-('30000000-0000-4000-8000-000000000005', 'Arte tipográfico', 'Obras centradas en letras, frases y lettering.', 'ACTIVO'),
-('30000000-0000-4000-8000-000000000006', 'Paste-up',         'Papel impreso o pintado pegado sobre el muro.', 'INACTIVO');
-
--- ---------------------------------------------------------------------
--- BARRIOS (comuna real de Cali)
--- ---------------------------------------------------------------------
-INSERT INTO barrio (id_barrio, nombre, comuna) VALUES
-(1, 'San Antonio', 3),
-(2, 'El Peñón', 3),
-(3, 'San Pedro', 3),
-(4, 'Granada', 2),
-(5, 'Siloé', 20),
-(6, 'Obrero', 9),
-(7, 'Alameda', 9),
-(8, 'San Fernando Viejo', 19),
-(9, 'Ciudad Jardín', 22);
-
--- ---------------------------------------------------------------------
--- UBICACIONES (10; "Muro Cañasgordas" aún no tiene obras)
--- ---------------------------------------------------------------------
-INSERT INTO ubicacion (id_ubicacion, nombre_lugar, direccion, id_barrioFK, latitud, longitud) VALUES
-('40000000-0000-4000-8000-000000000001', 'Bulevar del Río - Muro Oriental', 'Avenida Colombia # 8-20', 3, 3.45310000, -76.53280000),
-('40000000-0000-4000-8000-000000000002', 'Escalinata Loma de San Antonio',  'Carrera 10 # 1-50',      1, 3.44860000, -76.54050000),
-('40000000-0000-4000-8000-000000000003', 'Calle de la Escopeta',            'Calle 2 # 4-15',         1, 3.44750000, -76.53850000),
-('40000000-0000-4000-8000-000000000004', 'Muro Galería El Peñón',           'Calle 3 Oeste # 3-10',   2, 3.45200000, -76.54200000),
-('40000000-0000-4000-8000-000000000005', 'Mirador de Siloé',                'Carrera 52 # 1-80 Oeste',5, 3.42450000, -76.56200000),
-('40000000-0000-4000-8000-000000000006', 'Fachada Casa Obrera',             'Calle 22 # 10-40',       6, 3.44300000, -76.52500000),
-('40000000-0000-4000-8000-000000000007', 'Plaza de Mercado La Alameda',     'Calle 8 # 26-04',        7, 3.43800000, -76.53100000),
-('40000000-0000-4000-8000-000000000008', 'Parque del Perro',                'Calle 3A # 34-10',       8, 3.43400000, -76.54400000),
-('40000000-0000-4000-8000-000000000009', 'Corredor Avenida Sexta',          'Avenida 6 Norte # 15-30',4, 3.46200000, -76.53100000),
-('40000000-0000-4000-8000-000000000010', 'Muro Cañasgordas',                'Calle 18 # 105-30',      9, 3.37000000, -76.53000000);
-
--- ---------------------------------------------------------------------
--- OBRAS (12)
--- ---------------------------------------------------------------------
-INSERT INTO obra (id_obra, nombre, descripcion, fecha_creacion, estado_conservacion,
-                  id_artistaFK, id_categoriaFK, id_ubicacionFK, id_usuarioFK) VALUES
-('50000000-0000-4000-8000-000000000001', 'Memoria del Río',
- 'Mural de 30 metros que narra la historia del río Cali desde los Farallones hasta el Bulevar.', '2022-08-15', 'EXCELENTE',
- '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001'),
-('50000000-0000-4000-8000-000000000002', 'Raíces del Pacífico',
- 'Homenaje a las cantadoras y a la marimba de chonta del Pacífico colombiano.', '2021-05-20', 'BUENO',
- '20000000-0000-4000-8000-000000000004', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001'),
-('50000000-0000-4000-8000-000000000003', 'Guardianes de la Loma',
- 'Figuras protectoras pintadas a lo largo de la escalinata de San Antonio.', '2019-11-02', 'BUENO',
- '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001'),
-('50000000-0000-4000-8000-000000000004', 'Letras de Barrio',
- 'Composición tipográfica con dichos populares caleños.', '2023-03-10', 'EXCELENTE',
- '20000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000005', '40000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002'),
-('50000000-0000-4000-8000-000000000005', 'Eco de Tambores',
- 'Grafiti de personajes con tambores y trompetas inspirado en la salsa brava.', '2018-07-01', 'DETERIORADO',
- '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002'),
-('50000000-0000-4000-8000-000000000006', 'Mirada de Abuela',
- 'Retrato hiperrealista de una vecina del barrio El Peñón.', '2020-09-12', 'BUENO',
- '20000000-0000-4000-8000-000000000006', '30000000-0000-4000-8000-000000000004', '40000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000001'),
-('50000000-0000-4000-8000-000000000007', 'Ladera Viva',
- 'Mural colectivo que cubre varias fachadas del mirador de Siloé.', '2024-02-25', 'EXCELENTE',
- '20000000-0000-4000-8000-000000000006', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000002'),
-('50000000-0000-4000-8000-000000000008', 'Niños de Siloé',
- 'Retratos de niños del sector pintados durante un taller comunitario.', '2022-10-30', 'BUENO',
- '20000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000004', '40000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001'),
-('50000000-0000-4000-8000-000000000009', 'Pasos de Salsa',
- 'Serie de stencils con siluetas de bailarines de salsa caleña.', '2021-12-05', 'BUENO',
- '20000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000001'),
-('50000000-0000-4000-8000-000000000010', 'Frutas del Mercado',
- 'Mural de frutas tropicales en la fachada de la galería de La Alameda.', '2017-04-18', 'DETERIORADO',
- '20000000-0000-4000-8000-000000000005', '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000002'),
-('50000000-0000-4000-8000-000000000011', 'Perro Guardián',
- 'Stencil de un perro guardián, guiño al nombre popular del parque.', '2020-01-22', 'BUENO',
- '20000000-0000-4000-8000-000000000005', '30000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000008', '10000000-0000-4000-8000-000000000001'),
-('50000000-0000-4000-8000-000000000012', 'Neón Sexta',
- 'Grafiti de letras en colores neón, cubierto en una remodelación (se conserva el registro).', '2016-06-06', 'DESTRUIDO',
- '20000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000009', '10000000-0000-4000-8000-000000000002');
-
--- ---------------------------------------------------------------------
--- FORMATOS MULTIMEDIA PERMITIDOS (nueva tabla 3FN)
--- ---------------------------------------------------------------------
-INSERT INTO formato_multimedia (codigo_formato, tipo_recurso, mime_type, descripcion) VALUES
-('JPG', 'IMAGEN',    'image/jpeg',       'Fotografía comprimida (.jpg / .jpeg)'),
-('PNG', 'IMAGEN',    'image/png',        'Imagen sin pérdida (.png)'),
-('MP4', 'VIDEO',     'video/mp4',        'Video H.264 (.mp4)'),
-('MP3', 'AUDIO',     'audio/mpeg',       'Audio comprimido (.mp3)'),
-('GLB', 'MODELO_3D', 'model/gltf-binary','Modelo 3D glTF binario (.glb)'),
-('AR',  'AR',        'inode/directory',  'Carpeta con contenido de realidad aumentada (referencia)');
-
--- ---------------------------------------------------------------------
--- RECURSOS MULTIMEDIA (18). ruta_archivo es RELATIVA a la carpeta RecursosMultimedia/
--- tamano_bytes corresponde a los archivos de ejemplo incluidos en el proyecto.
--- ---------------------------------------------------------------------
-INSERT INTO recurso_multimedia (id_recurso, nombre, descripcion, ruta_archivo, codigo_formatoFK,
-                                tamano_bytes, duracion_segundos, id_obraFK) VALUES
-('60000000-0000-4000-8000-000000000001', 'Fotografía frontal',      'Toma diurna del mural completo.',          'Imagenes/obra_001_frontal.jpg',     'JPG',  73433, NULL, '50000000-0000-4000-8000-000000000001'),
-('60000000-0000-4000-8000-000000000002', 'Video del proceso',       'Timelapse de la pintura del mural.',       'Videos/obra_001_proceso.mp4',       'MP4', 304978,    8, '50000000-0000-4000-8000-000000000001'),
-('60000000-0000-4000-8000-000000000003', 'Audioguía',               'Narración sobre la historia del río.',     'Audios/obra_001_audioguia.mp3',     'MP3', 120730,   10, '50000000-0000-4000-8000-000000000001'),
-('60000000-0000-4000-8000-000000000004', 'Fotografía frontal',      NULL,                                       'Imagenes/obra_002_frontal.jpg',     'JPG',  77148, NULL, '50000000-0000-4000-8000-000000000002'),
-('60000000-0000-4000-8000-000000000005', 'Fotografía frontal',      NULL,                                       'Imagenes/obra_003_frontal.jpg',     'JPG',  89049, NULL, '50000000-0000-4000-8000-000000000003'),
-('60000000-0000-4000-8000-000000000006', 'Modelo 3D de la escalinata','Levantamiento 3D simplificado del muro.','Modelos3D/obra_003_escalinata.glb', 'GLB',    884, NULL, '50000000-0000-4000-8000-000000000003'),
-('60000000-0000-4000-8000-000000000007', 'Detalle tipográfico',     'Acercamiento a las letras principales.',   'Imagenes/obra_004_detalle.png',     'PNG',  78446, NULL, '50000000-0000-4000-8000-000000000004'),
-('60000000-0000-4000-8000-000000000008', 'Fotografía frontal',      'Se aprecia el deterioro por humedad.',     'Imagenes/obra_005_frontal.jpg',     'JPG',  79167, NULL, '50000000-0000-4000-8000-000000000005'),
-('60000000-0000-4000-8000-000000000009', 'Fotografía frontal',      NULL,                                       'Imagenes/obra_006_frontal.jpg',     'JPG',  81695, NULL, '50000000-0000-4000-8000-000000000006'),
-('60000000-0000-4000-8000-000000000010', 'Panorámica',              'Vista desde el mirador.',                  'Imagenes/obra_007_panoramica.jpg',  'JPG',  73024, NULL, '50000000-0000-4000-8000-000000000007'),
-('60000000-0000-4000-8000-000000000011', 'Toma aérea con dron',     NULL,                                       'Videos/obra_007_dron.mp4',          'MP4', 243005,    6, '50000000-0000-4000-8000-000000000007'),
-('60000000-0000-4000-8000-000000000012', 'Fotografía frontal',      NULL,                                       'Imagenes/obra_008_frontal.jpg',     'JPG',  71237, NULL, '50000000-0000-4000-8000-000000000008'),
-('60000000-0000-4000-8000-000000000013', 'Testimonio comunitario',  'Entrevista a una líder del barrio.',       'Audios/obra_008_testimonio.mp3',    'MP3', 144867,   12, '50000000-0000-4000-8000-000000000008'),
-('60000000-0000-4000-8000-000000000014', 'Fotografía frontal',      NULL,                                       'Imagenes/obra_009_frontal.png',     'PNG',  84585, NULL, '50000000-0000-4000-8000-000000000009'),
-('60000000-0000-4000-8000-000000000015', 'Fotografía frontal',      NULL,                                       'Imagenes/obra_010_frontal.jpg',     'JPG',  71437, NULL, '50000000-0000-4000-8000-000000000010'),
-('60000000-0000-4000-8000-000000000016', 'Fotografía frontal',      NULL,                                       'Imagenes/obra_011_frontal.jpg',     'JPG',  72916, NULL, '50000000-0000-4000-8000-000000000011'),
-('60000000-0000-4000-8000-000000000017', 'Fotografía de archivo',   'Registro previo a la remodelación.',       'Imagenes/obra_012_archivo.jpg',     'JPG',  75365, NULL, '50000000-0000-4000-8000-000000000012'),
-('60000000-0000-4000-8000-000000000018', 'Contenido de realidad aumentada', 'Marcador y modelo para una experiencia AR.', 'AR/obra_001/', 'AR', 82983, NULL, '50000000-0000-4000-8000-000000000001');
-
--- ---------------------------------------------------------------------
--- RUTAS (3)
--- ---------------------------------------------------------------------
-INSERT INTO ruta (id_ruta, nombre, descripcion, duracion_estimada_min, distancia_estimada_km, estado) VALUES
-('70000000-0000-4000-8000-000000000001', 'Ruta Centro Histórico y Río',
- 'Recorrido a pie por el Bulevar del Río, San Antonio y El Peñón. Ideal para turistas.', 120, 2.80, 'ACTIVO'),
-('70000000-0000-4000-8000-000000000002', 'Ruta Ladera de Siloé',
- 'Recorrido guiado por la comunidad hasta el mirador de Siloé.', 90, 1.60, 'ACTIVO'),
-('70000000-0000-4000-8000-000000000003', 'Ruta Salsa y Sabor',
- 'Obras inspiradas en la salsa y la cultura popular entre el Obrero, La Alameda y San Fernando.', 150, 4.50, 'EN_MANTENIMIENTO');
-
--- ---------------------------------------------------------------------
--- RUTA_OBRA (13 paradas). "Memoria del Río" y "Eco de Tambores" están en 2 rutas (M:N)
--- ---------------------------------------------------------------------
-INSERT INTO ruta_obra (id_ruta_obra, id_rutaFK, id_obraFK, orden_visita, tiempo_estimado_min, recomendacion) VALUES
--- Ruta Centro Histórico y Río
-('80000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', 1, 15, 'Punto de partida. Mejor luz en la mañana.'),
-('80000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000002', 2, 10, NULL),
-('80000000-0000-4000-8000-000000000003', '70000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000003', 3, 15, 'Subida exigente; llevar agua.'),
-('80000000-0000-4000-8000-000000000004', '70000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000004', 4, 10, NULL),
-('80000000-0000-4000-8000-000000000005', '70000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000005', 5, 10, 'Obra deteriorada: observar desde la acera.'),
-('80000000-0000-4000-8000-000000000006', '70000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000006', 6, 10, 'Cierre con vista al atardecer.'),
--- Ruta Ladera de Siloé
-('80000000-0000-4000-8000-000000000007', '70000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000008', 1, 20, 'Ir con guía local de la comunidad.'),
-('80000000-0000-4000-8000-000000000008', '70000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000007', 2, 25, 'Panorámica de la ciudad desde el mirador.'),
--- Ruta Salsa y Sabor
-('80000000-0000-4000-8000-000000000009', '70000000-0000-4000-8000-000000000003', '50000000-0000-4000-8000-000000000009', 1, 10, NULL),
-('80000000-0000-4000-8000-000000000010', '70000000-0000-4000-8000-000000000003', '50000000-0000-4000-8000-000000000010', 2, 20, 'Aprovechar para probar fruta en la galería.'),
-('80000000-0000-4000-8000-000000000011', '70000000-0000-4000-8000-000000000003', '50000000-0000-4000-8000-000000000011', 3, 10, NULL),
-('80000000-0000-4000-8000-000000000012', '70000000-0000-4000-8000-000000000003', '50000000-0000-4000-8000-000000000005', 4, 10, NULL),
-('80000000-0000-4000-8000-000000000013', '70000000-0000-4000-8000-000000000003', '50000000-0000-4000-8000-000000000001', 5, 15, 'Final frente al río.');
+-- Mejora las búsquedas espaciales por coordenadas en ubicacion
+CREATE INDEX `idx_ubicacion_coordenadas`
+    ON `ubicacion` (`latitud`, `longitud`);
 
 
--- =====================================================================
---  Galería de Arte Urbano de Cali
---  Etapa 5 — Script 03: Vistas, procedimientos almacenados e índices
--- =====================================================================
-SET NAMES utf8mb4;
-USE galeria_arte_urbano_cali;
+-- =============================================================================
+-- 3. VISTAS MULTITABLA (LLAMADAS DESDE LA APLICACIÓN C#)
+-- =============================================================================
 
--- =====================================================================
--- VISTAS
--- Una vista es una consulta guardada con nombre. La aplicación C# consulta
--- la vista como si fuera una tabla y no repite los JOIN en cada formulario.
--- =====================================================================
+-- Vista 1: Catálogo completo de obras (JOIN de 9 tablas)
+CREATE VIEW `vw_catalogo_obras_completo` AS
+SELECT
+    o.`idObra`,
+    o.`nombreObra` AS `titulo_obra`,
+    o.`descripcionObra` AS `descripcion_obra`,
+    o.`fechaCreacion`,
+    o.`estadoConservacion`,
+    o.`fechaRegistroObra`,
+    a.`idArtista`,
+    a.`nombreArtistico` AS `artista`,
+    CONCAT_WS(' ', a.`nombre1Real`, a.`nombre2Real`, a.`apellido1Real`, a.`apellido2Real`) AS `artista_nombre_real`,
+    p.`nombrePais` AS `pais_artista`,
+    a.`perfilRedSocial` AS `red_social_artista`,
+    c.`idCategoria`,
+    c.`nombreCategoria` AS `categoria_tecnica`,
+    u.`idUbicacion`,
+    u.`nombreLugar`,
+    u.`direccion`,
+    b.`nombreBarrio` AS `barrio`,
+    com.`numeroComuna` AS `numero_comuna`,
+    CONCAT('Comuna ', com.`numeroComuna`) AS `comuna`,
+    u.`latitud`,
+    u.`longitud`,
+    usr.`idUsuario` AS `id_usuario_registrador`,
+    CONCAT_WS(' ', usr.`nombre1Usuario`, usr.`nombre2Usuario`, usr.`apellido1Usuario`, usr.`apellido2Usuario`) AS `registrado_por`,
+    tu.`nombreTipoUsuario` AS `rol_registrador`
+FROM `obra` o
+INNER JOIN `artista` a          ON o.`idArtistaFK`       = a.`idArtista`
+INNER JOIN `pais` p             ON a.`idPaisFK`          = p.`idPais`
+INNER JOIN `categoria` c        ON o.`idCategoriaFK`     = c.`idCategoria`
+INNER JOIN `ubicacion` u        ON o.`idUbicacionFK`     = u.`idUbicacion`
+INNER JOIN `barrio` b           ON u.`idBarrioFK`        = b.`idBarrio`
+INNER JOIN `comuna` com         ON b.`idComunaFK`        = com.`idComuna`
+INNER JOIN `usuario` usr        ON o.`idUsuarioFK`       = usr.`idUsuario`
+INNER JOIN `tipo_usuario` tu    ON usr.`idTipoUsuarioFK` = tu.`idTipoUsuario`;
 
--- Vista 1: ficha completa de cada obra (consulta "Consulta de obra" del enunciado)
-CREATE OR REPLACE VIEW vw_obra_detalle AS
-SELECT  o.id_obra,
-        o.nombre                  AS obra,
-        o.descripcion,
-        o.fecha_creacion,
-        o.estado_conservacion,
-        o.fecha_registro,
-        a.id_artista,
-        a.nombre_artistico        AS artista,
-        c.id_categoria,
-        c.nombre                  AS categoria,
-        u.id_ubicacion,
-        u.nombre_lugar            AS lugar,
-        u.direccion,
-        b.id_barrio,
-        b.nombre                  AS barrio,
-        b.comuna,
-        u.latitud,
-        u.longitud,
-        o.id_usuarioFK            AS id_usuario,
-        CONCAT(us.nombre, ' ', us.apellido) AS registrado_por,
-        (SELECT COUNT(*) FROM recurso_multimedia r WHERE r.id_obraFK = o.id_obra) AS total_recursos
-FROM    obra o
-        INNER JOIN artista   a  ON a.id_artista   = o.id_artistaFK
-        INNER JOIN categoria c  ON c.id_categoria = o.id_categoriaFK
-        INNER JOIN ubicacion u  ON u.id_ubicacion = o.id_ubicacionFK
-        INNER JOIN barrio    b  ON b.id_barrio    = u.id_barrioFK
-        INNER JOIN usuario   us ON us.id_usuario  = o.id_usuarioFK;
+-- Vista 2: Itinerario detallado de rutas (JOIN de 7 tablas)
+CREATE VIEW `vw_rutas_itinerario_detallado` AS
+SELECT
+    r.`idRuta`,
+    r.`nombreRuta` AS `nombre_ruta`,
+    r.`descripcionRuta` AS `descripcion_ruta`,
+    r.`duracionEstimada` AS `duracion_total_ruta_min`,
+    r.`distanciaEstimada` AS `distancia_total_km`,
+    r.`estadoRuta` AS `estado_ruta`,
+    ro.`idRutaObra`,
+    ro.`ordenVisita` AS `orden_visita`,
+    ro.`tiempoPermanencia` AS `tiempo_permanencia_min`,
+    ro.`recomendacion` AS `recomendacion_parada`,
+    o.`idObra`,
+    o.`nombreObra` AS `titulo_obra`,
+    o.`estadoConservacion`,
+    a.`nombreArtistico` AS `artista`,
+    u.`nombreLugar`,
+    u.`direccion`,
+    b.`nombreBarrio` AS `barrio`,
+    CONCAT('Comuna ', com.`numeroComuna`) AS `comuna`,
+    u.`latitud`,
+    u.`longitud`
+FROM `ruta` r
+INNER JOIN `ruta_obra` ro   ON r.`idRuta`        = ro.`idRutaFK`
+INNER JOIN `obra` o         ON ro.`idObraFK`     = o.`idObra`
+INNER JOIN `artista` a      ON o.`idArtistaFK`   = a.`idArtista`
+INNER JOIN `ubicacion` u    ON o.`idUbicacionFK` = u.`idUbicacion`
+INNER JOIN `barrio` b       ON u.`idBarrioFK`    = b.`idBarrio`
+INNER JOIN `comuna` com     ON b.`idComunaFK`    = com.`idComuna`;
 
--- Vista 2: recorrido de cada ruta en orden (consulta "Consulta de ruta")
-CREATE OR REPLACE VIEW vw_ruta_detalle AS
-SELECT  r.id_ruta,
-        r.nombre                AS ruta,
-        r.estado                AS estado_ruta,
-        r.duracion_estimada_min,
-        r.distancia_estimada_km,
-        ro.id_ruta_obra,
-        ro.orden_visita,
-        o.id_obra,
-        o.nombre                AS obra,
-        a.nombre_artistico      AS artista,
-        u.nombre_lugar          AS lugar,
-        u.direccion,
-        b.nombre                AS barrio,
-        b.comuna,
-        u.latitud,
-        u.longitud,
-        ro.tiempo_estimado_min,
-        ro.recomendacion
-FROM    ruta r
-        INNER JOIN ruta_obra ro ON ro.id_rutaFK   = r.id_ruta
-        INNER JOIN obra      o  ON o.id_obra      = ro.id_obraFK
-        INNER JOIN artista   a  ON a.id_artista   = o.id_artistaFK
-        INNER JOIN ubicacion u  ON u.id_ubicacion = o.id_ubicacionFK
-        INNER JOIN barrio    b  ON b.id_barrio    = u.id_barrioFK;
+-- Vista 3: Resumen de recursos multimedia por obra (JOIN de 6 tablas)
+CREATE VIEW `vw_obras_resumen_multimedia` AS
+SELECT
+    o.`idObra`,
+    o.`nombreObra` AS `titulo_obra`,
+    a.`nombreArtistico` AS `artista`,
+    c.`nombreCategoria` AS `categoria`,
+    COUNT(rm.`idRecurso`) AS `total_recursos`,
+    SUM(CASE WHEN tr.`nombreTipoRecurso` = 'IMAGEN' THEN 1 ELSE 0 END) AS `cant_imagenes`,
+    SUM(CASE WHEN tr.`nombreTipoRecurso` = 'VIDEO' THEN 1 ELSE 0 END) AS `cant_videos`,
+    SUM(CASE WHEN tr.`nombreTipoRecurso` = 'AUDIO' THEN 1 ELSE 0 END) AS `cant_audios`,
+    SUM(CASE WHEN tr.`nombreTipoRecurso` = 'MODELO_3D' THEN 1 ELSE 0 END) AS `cant_modelos_3d`,
+    SUM(CASE WHEN tr.`nombreTipoRecurso` = 'AR' THEN 1 ELSE 0 END) AS `cant_experiencias_ar`,
+    ROUND(COALESCE(SUM(rm.`tamanio`), 0), 2) AS `tamano_total_mb`,
+    MIN(CASE WHEN tr.`nombreTipoRecurso` = 'IMAGEN' THEN CONCAT(tr.`carpetaBase`, rm.`rutaArchivo`) END) AS `imagen_principal_preview`
+FROM `obra` o
+INNER JOIN `artista` a                  ON o.`idArtistaFK`      = a.`idArtista`
+INNER JOIN `categoria` c                ON o.`idCategoriaFK`    = c.`idCategoria`
+LEFT JOIN `recurso_multimedia` rm       ON o.`idObra`           = rm.`idObraFK`
+LEFT JOIN `formato_recurso` fr          ON rm.`idFormatoFK`     = fr.`idFormato`
+LEFT JOIN `tipo_recurso` tr             ON fr.`idTipoRecursoFK` = tr.`idTipoRecurso`
+GROUP BY
+    o.`idObra`,
+    o.`nombreObra`,
+    a.`nombreArtistico`,
+    c.`nombreCategoria`;
 
--- Vista 3: recursos con su tipo (sale de FORMATO_MULTIMEDIA gracias a la 3FN)
-CREATE OR REPLACE VIEW vw_recurso_detalle AS
-SELECT  rm.id_recurso,
-        rm.nombre,
-        rm.descripcion,
-        rm.ruta_archivo,
-        f.codigo_formato        AS formato,
-        f.tipo_recurso,
-        f.mime_type,
-        rm.tamano_bytes,
-        rm.duracion_segundos,
-        rm.fecha_registro,
-        o.id_obra,
-        o.nombre                AS obra
-FROM    recurso_multimedia rm
-        INNER JOIN formato_multimedia f ON f.codigo_formato = rm.codigo_formatoFK
-        INNER JOIN obra               o ON o.id_obra        = rm.id_obraFK;
+-- Vista 4: Estadísticas culturales por comuna (JOIN de 6 tablas + GROUP BY)
+CREATE VIEW `vw_estadisticas_culturales_comuna` AS
+SELECT
+    com.`numeroComuna`,
+    CONCAT('Comuna ', com.`numeroComuna`) AS `comuna`,
+    COUNT(DISTINCT b.`idBarrio`) AS `barrios_con_obras`,
+    COUNT(DISTINCT o.`idObra`) AS `total_obras`,
+    COUNT(DISTINCT o.`idArtistaFK`) AS `total_artistas_intervinientes`,
+    COUNT(DISTINCT o.`idCategoriaFK`) AS `total_tecnicas_presentes`,
+    SUM(CASE WHEN o.`estadoConservacion` IN ('Excelente', 'Bueno') THEN 1 ELSE 0 END) AS `obras_buen_estado`,
+    SUM(CASE WHEN o.`estadoConservacion` IN ('Regular', 'Deteriorado', 'Destruido') THEN 1 ELSE 0 END) AS `obras_requieren_intervencion`
+FROM `comuna` com
+INNER JOIN `barrio` b       ON com.`idComuna`    = b.`idComunaFK`
+INNER JOIN `ubicacion` u    ON b.`idBarrio`      = u.`idBarrioFK`
+INNER JOIN `obra` o         ON u.`idUbicacion`   = o.`idUbicacionFK`
+INNER JOIN `categoria` c    ON o.`idCategoriaFK` = c.`idCategoria`
+INNER JOIN `artista` a      ON o.`idArtistaFK`   = a.`idArtista`
+GROUP BY com.`idComuna`, com.`numeroComuna`;
 
 
--- =====================================================================
--- PROCEDIMIENTOS ALMACENADOS
--- Encapsulan operaciones de varias sentencias que deben ejecutarse juntas
--- (transacción): si algo falla, no queda la ruta con el orden "roto".
--- =====================================================================
-DROP PROCEDURE IF EXISTS sp_agregar_obra_a_ruta;
-DROP PROCEDURE IF EXISTS sp_retirar_obra_de_ruta;
-DROP PROCEDURE IF EXISTS sp_mover_obra_en_ruta;
-DROP PROCEDURE IF EXISTS sp_eliminar_o_desactivar_artista;
+-- =============================================================================
+-- 4. PROCEDIMIENTOS ALMACENADOS (LLAMADOS DESDE LA APLICACIÓN C#)
+-- =============================================================================
 
-DELIMITER //
+DELIMITER $$
 
--- ---------------------------------------------------------------------
--- SP 1: agrega una obra al FINAL de una ruta calculando el siguiente orden.
--- Evita que el usuario tenga que adivinar el número de orden (RN-05).
--- ---------------------------------------------------------------------
-CREATE PROCEDURE sp_agregar_obra_a_ruta(
-    IN p_id_ruta        CHAR(36),
-    IN p_id_obra        CHAR(36),
-    IN p_tiempo_min     SMALLINT UNSIGNED,
-    IN p_recomendacion  TEXT
+CREATE PROCEDURE `sp_registrar_obra` (
+    IN  p_id_obra             CHAR(36),
+    IN  p_nombre_obra         VARCHAR(120),
+    IN  p_descripcion_obra    TEXT,
+    IN  p_fecha_creacion      DATE,
+    IN  p_estado_conservacion VARCHAR(30),
+    IN  p_id_artista          CHAR(36),
+    IN  p_id_categoria        CHAR(36),
+    IN  p_id_ubicacion        CHAR(36),
+    IN  p_id_usuario          CHAR(36),
+    OUT p_nuevo_id_obra       CHAR(36)
 )
-BEGIN
-    DECLARE v_siguiente SMALLINT UNSIGNED;
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
+proc_block: BEGIN
+    DECLARE v_count INT DEFAULT 0;
 
-    IF NOT EXISTS (SELECT 1 FROM ruta WHERE id_ruta = p_id_ruta) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La ruta no existe.';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM obra WHERE id_obra = p_id_obra) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La obra no existe.';
-    END IF;
-    IF EXISTS (SELECT 1 FROM ruta_obra WHERE id_rutaFK = p_id_ruta AND id_obraFK = p_id_obra) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La obra ya forma parte de esta ruta.';
+    SELECT COUNT(*) INTO v_count FROM `artista` WHERE `idArtista` = p_id_artista AND `estadoArtista` = TRUE;
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El artista seleccionado no existe o está inactivo.';
     END IF;
 
-    START TRANSACTION;
-        -- FOR UPDATE bloquea las filas de la ruta: dos administradores no obtienen el mismo número
-        SELECT COALESCE(MAX(orden_visita), 0) + 1 INTO v_siguiente
-        FROM ruta_obra WHERE id_rutaFK = p_id_ruta FOR UPDATE;
-
-        INSERT INTO ruta_obra (id_ruta_obra, id_rutaFK, id_obraFK, orden_visita, tiempo_estimado_min, recomendacion)
-        VALUES (UUID(), p_id_ruta, p_id_obra, v_siguiente, COALESCE(p_tiempo_min, 10), p_recomendacion);
-    COMMIT;
-END //
-
--- ---------------------------------------------------------------------
--- SP 2: retira una obra de una ruta y "compacta" el orden (1,2,3,... sin huecos).
--- El UPDATE ... ORDER BY ASC evita choques con UNIQUE(id_rutaFK, orden_visita).
--- ---------------------------------------------------------------------
-CREATE PROCEDURE sp_retirar_obra_de_ruta(
-    IN p_id_ruta  CHAR(36),
-    IN p_id_obra  CHAR(36)
-)
-BEGIN
-    DECLARE v_orden SMALLINT UNSIGNED DEFAULT NULL;
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
-
-    SELECT orden_visita INTO v_orden
-    FROM ruta_obra WHERE id_rutaFK = p_id_ruta AND id_obraFK = p_id_obra;
-
-    IF v_orden IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La obra no pertenece a esta ruta.';
+    SELECT COUNT(*) INTO v_count FROM `categoria` WHERE `idCategoria` = p_id_categoria AND `estadoCategoria` = TRUE;
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La categoría seleccionada no existe o está inactiva.';
     END IF;
 
-    START TRANSACTION;
-        DELETE FROM ruta_obra WHERE id_rutaFK = p_id_ruta AND id_obraFK = p_id_obra;
-
-        UPDATE ruta_obra
-           SET orden_visita = orden_visita - 1
-         WHERE id_rutaFK = p_id_ruta AND orden_visita > v_orden
-         ORDER BY orden_visita ASC;
-    COMMIT;
-END //
-
--- ---------------------------------------------------------------------
--- SP 3: cambia la posición de una obra dentro de la ruta y desplaza las demás.
--- Ej.: mover la parada 5 a la posición 2 → las paradas 2,3,4 pasan a 3,4,5.
--- ---------------------------------------------------------------------
-CREATE PROCEDURE sp_mover_obra_en_ruta(
-    IN p_id_ruta       CHAR(36),
-    IN p_id_obra       CHAR(36),
-    IN p_nuevo_orden   SMALLINT UNSIGNED
-)
-BEGIN
-    DECLARE v_actual SMALLINT UNSIGNED DEFAULT NULL;
-    DECLARE v_total  SMALLINT UNSIGNED;
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK; RESIGNAL; END;
-
-    SELECT orden_visita INTO v_actual
-    FROM ruta_obra WHERE id_rutaFK = p_id_ruta AND id_obraFK = p_id_obra;
-    SELECT COUNT(*) INTO v_total FROM ruta_obra WHERE id_rutaFK = p_id_ruta;
-
-    IF v_actual IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La obra no pertenece a esta ruta.';
-    END IF;
-    IF p_nuevo_orden < 1 OR p_nuevo_orden > v_total THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El nuevo orden está fuera del rango de la ruta.';
+    SELECT COUNT(*) INTO v_count FROM `ubicacion` WHERE `idUbicacion` = p_id_ubicacion;
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La ubicación seleccionada no existe.';
     END IF;
 
-    IF p_nuevo_orden <> v_actual THEN
-        START TRANSACTION;
-            -- 1) se "estaciona" la obra en una posición temporal libre
-            UPDATE ruta_obra SET orden_visita = 60000
-             WHERE id_rutaFK = p_id_ruta AND id_obraFK = p_id_obra;
-
-            -- 2) se desplazan las obras intermedias (en el orden que evita duplicados)
-            IF p_nuevo_orden < v_actual THEN
-                UPDATE ruta_obra SET orden_visita = orden_visita + 1
-                 WHERE id_rutaFK = p_id_ruta AND orden_visita >= p_nuevo_orden AND orden_visita < v_actual
-                 ORDER BY orden_visita DESC;
-            ELSE
-                UPDATE ruta_obra SET orden_visita = orden_visita - 1
-                 WHERE id_rutaFK = p_id_ruta AND orden_visita > v_actual AND orden_visita <= p_nuevo_orden
-                 ORDER BY orden_visita ASC;
-            END IF;
-
-            -- 3) se ubica la obra en su nueva posición
-            UPDATE ruta_obra SET orden_visita = p_nuevo_orden
-             WHERE id_rutaFK = p_id_ruta AND id_obraFK = p_id_obra;
-        COMMIT;
-    END IF;
-END //
-
--- ---------------------------------------------------------------------
--- SP 4: RN-02. Si el artista tiene obras → se DESACTIVA; si no tiene → se ELIMINA.
--- Devuelve en p_resultado lo que hizo, para que la aplicación lo informe.
--- ---------------------------------------------------------------------
-CREATE PROCEDURE sp_eliminar_o_desactivar_artista(
-    IN  p_id_artista  CHAR(36),
-    OUT p_resultado   VARCHAR(15)
-)
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM artista WHERE id_artista = p_id_artista) THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El artista no existe.';
+    SELECT COUNT(*) INTO v_count FROM `usuario` WHERE `idUsuario` = p_id_usuario AND `estadoUsuario` = TRUE;
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El usuario registrador no existe o está inactivo.';
     END IF;
 
-    IF EXISTS (SELECT 1 FROM obra WHERE id_artistaFK = p_id_artista) THEN
-        UPDATE artista SET estado = 'INACTIVO' WHERE id_artista = p_id_artista;
-        SET p_resultado = 'DESACTIVADO';
+    IF p_id_obra IS NULL OR TRIM(p_id_obra) = '' THEN
+        SET p_nuevo_id_obra = UUID();
     ELSE
-        DELETE FROM artista WHERE id_artista = p_id_artista;
-        SET p_resultado = 'ELIMINADO';
+        SET p_nuevo_id_obra = p_id_obra;
     END IF;
-END //
+
+    INSERT INTO `obra` (
+        `idObra`, `nombreObra`, `descripcionObra`, `fechaCreacion`,
+        `estadoConservacion`, `fechaRegistroObra`,
+        `idArtistaFK`, `idCategoriaFK`, `idUbicacionFK`, `idUsuarioFK`
+    ) VALUES (
+        p_nuevo_id_obra, p_nombre_obra, p_descripcion_obra, p_fecha_creacion,
+        p_estado_conservacion, CURRENT_DATE,
+        p_id_artista, p_id_categoria, p_id_ubicacion, p_id_usuario
+    );
+END proc_block$$
+
+CREATE PROCEDURE `sp_asociar_recurso_multimedia` (
+    IN  p_id_recurso        CHAR(36),
+    IN  p_id_obra           CHAR(36),
+    IN  p_id_formato        CHAR(36),
+    IN  p_nombre_recurso    VARCHAR(100),
+    IN  p_descripcion       TEXT,
+    IN  p_ruta_archivo      VARCHAR(255),
+    IN  p_tamanio_mb        DECIMAL(12,2),
+    IN  p_duracion_seg      INT,
+    OUT p_nuevo_id_recurso  CHAR(36)
+)
+proc_block: BEGIN
+    DECLARE v_count INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO v_count FROM `obra` WHERE `idObra` = p_id_obra;
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La obra especificada no existe.';
+    END IF;
+
+    SELECT COUNT(*) INTO v_count FROM `formato_recurso` WHERE `idFormato` = p_id_formato;
+    IF v_count = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El formato multimedia especificado no es válido.';
+    END IF;
+
+    IF p_id_recurso IS NULL OR TRIM(p_id_recurso) = '' THEN
+        SET p_nuevo_id_recurso = UUID();
+    ELSE
+        SET p_nuevo_id_recurso = p_id_recurso;
+    END IF;
+
+    INSERT INTO `recurso_multimedia` (
+        `idRecurso`, `nombreRecurso`, `descripcionRecurso`, `rutaArchivo`,
+        `tamanio`, `duracion`, `fechaRegistroRecurso`, `idFormatoFK`, `idObraFK`
+    ) VALUES (
+        p_nuevo_id_recurso, p_nombre_recurso, p_descripcion, p_ruta_archivo,
+        p_tamanio_mb, p_duracion_seg, CURRENT_DATE, p_id_formato, p_id_obra
+    );
+END proc_block$$
+
+CREATE PROCEDURE `sp_registrar_obra_con_recurso_principal` (
+    IN  p_nombre_obra         VARCHAR(120),
+    IN  p_descripcion_obra    TEXT,
+    IN  p_fecha_creacion      DATE,
+    IN  p_estado_conservacion VARCHAR(30),
+    IN  p_id_artista          CHAR(36),
+    IN  p_id_categoria        CHAR(36),
+    IN  p_id_ubicacion        CHAR(36),
+    IN  p_id_usuario          CHAR(36),
+    IN  p_id_formato          CHAR(36),
+    IN  p_nombre_recurso      VARCHAR(100),
+    IN  p_ruta_archivo        VARCHAR(255),
+    IN  p_tamanio_mb          DECIMAL(12,2),
+    OUT p_id_obra_creada      CHAR(36),
+    OUT p_id_recurso_creado   CHAR(36)
+)
+proc_block: BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SET p_id_obra_creada = UUID();
+    SET p_id_recurso_creado = UUID();
+
+    CALL `sp_registrar_obra`(
+        p_id_obra_creada, p_nombre_obra, p_descripcion_obra,
+        p_fecha_creacion, p_estado_conservacion,
+        p_id_artista, p_id_categoria, p_id_ubicacion, p_id_usuario,
+        p_id_obra_creada
+    );
+
+    CALL `sp_asociar_recurso_multimedia`(
+        p_id_recurso_creado, p_id_obra_creada, p_id_formato,
+        p_nombre_recurso, 'Fotografía principal de la obra',
+        p_ruta_archivo, p_tamanio_mb, NULL,
+        p_id_recurso_creado
+    );
+
+    COMMIT;
+END proc_block$$
+
+CREATE PROCEDURE `sp_asignar_obra_a_ruta` (
+    IN  p_id_ruta           CHAR(36),
+    IN  p_id_obra           CHAR(36),
+    IN  p_orden_visita      INT,
+    IN  p_tiempo_min        INT,
+    IN  p_recomendacion     TEXT,
+    OUT p_nuevo_id_hito     CHAR(36)
+)
+proc_block: BEGIN
+    SET p_nuevo_id_hito = UUID();
+
+    INSERT INTO `ruta_obra` (
+        `idRutaObra`, `ordenVisita`, `recomendacion`,
+        `tiempoPermanencia`, `idRutaFK`, `idObraFK`
+    ) VALUES (
+        p_nuevo_id_hito, p_orden_visita, p_recomendacion,
+        p_tiempo_min, p_id_ruta, p_id_obra
+    );
+END proc_block$$
 
 DELIMITER ;
 
 
--- =====================================================================
--- ÍNDICES
--- MySQL ya crea índices automáticamente para PRIMARY KEY, UNIQUE y FOREIGN KEY.
--- Estos dos índices adicionales se justifican por consultas concretas de la app.
--- =====================================================================
+-- =============================================================================
+-- PROYECTO DE CURSO: GALERÍA DE ARTE URBANO DE CALI (DATOS DE PRUEBA Y DML)
+-- Asignatura: Bases de Datos Multimedia (BDM) - Grupo 51
+-- Universidad Autónoma de Occidente (UAO) - Facultad de Ingeniería
+-- Integrantes: Juan Pablo Campo Bertin (2235544) · Jean Deiby García
+-- Docente: David Alejandro Castro Benavides
+-- =============================================================================
 
--- Índice 1: búsqueda de obras por nombre (módulo Consultas: "buscar obra que empiece por...")
---   Consulta que mejora:  SELECT ... FROM obra WHERE nombre LIKE 'Mem%' ORDER BY nombre;
---   Sin índice: recorre toda la tabla (type = ALL). Con índice: rango sobre el índice (type = range)
---   y además entrega las filas ya ordenadas (sin "Using filesort").
---   Nota: el UNIQUE (id_ubicacionFK, nombre) NO sirve para esto porque su primera columna es la ubicación.
-CREATE INDEX idx_obra_nombre ON obra (nombre);
+USE `galeria_arte_urbano_db`;
 
--- Índice 2: estadísticas y filtros por comuna (consulta "obras por comuna")
---   Consulta que mejora:  ... FROM barrio b ... WHERE b.comuna = 3   /   GROUP BY b.comuna
---   Permite a MySQL ubicar los barrios de una comuna sin leer todos los barrios y
---   agrupar recorriendo el índice ya ordenado por comuna.
-CREATE INDEX idx_barrio_comuna ON barrio (comuna);
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE `recurso_multimedia`;
+TRUNCATE TABLE `ruta_obra`;
+TRUNCATE TABLE `ruta`;
+TRUNCATE TABLE `obra`;
+TRUNCATE TABLE `artista`;
+TRUNCATE TABLE `usuario`;
+TRUNCATE TABLE `formato_recurso`;
+TRUNCATE TABLE `tipo_recurso`;
+TRUNCATE TABLE `categoria`;
+TRUNCATE TABLE `ubicacion`;
+TRUNCATE TABLE `barrio`;
+TRUNCATE TABLE `comuna`;
+TRUNCATE TABLE `tipo_usuario`;
+TRUNCATE TABLE `pais`;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- 1. PAIS
+INSERT INTO `pais` (`idPais`, `nombrePais`) VALUES
+('10000000-0000-4000-8000-000000000001', 'Colombia'),
+('10000000-0000-4000-8000-000000000002', 'México'),
+('10000000-0000-4000-8000-000000000003', 'Brasil'),
+('10000000-0000-4000-8000-000000000004', 'Chile'),
+('10000000-0000-4000-8000-000000000005', 'España');
+
+-- 2. TIPO_USUARIO
+INSERT INTO `tipo_usuario` (`idTipoUsuario`, `nombreTipoUsuario`) VALUES
+('20000000-0000-4000-8000-000000000001', 'Administrador'),
+('20000000-0000-4000-8000-000000000002', 'Visitante');
+
+-- 3. COMUNA
+INSERT INTO `comuna` (`idComuna`, `numeroComuna`) VALUES
+('30000000-0000-4000-8000-000000000002', 2),
+('30000000-0000-4000-8000-000000000003', 3),
+('30000000-0000-4000-8000-000000000009', 9),
+('30000000-0000-4000-8000-000000000019', 19),
+('30000000-0000-4000-8000-000000000020', 20);
+
+-- 4. BARRIO
+INSERT INTO `barrio` (`idBarrio`, `nombreBarrio`, `idComunaFK`) VALUES
+('40000000-0000-4000-8000-000000000001', 'San Pedro',    '30000000-0000-4000-8000-000000000003'),
+('40000000-0000-4000-8000-000000000002', 'Siloé',        '30000000-0000-4000-8000-000000000020'),
+('40000000-0000-4000-8000-000000000003', 'San Antonio',  '30000000-0000-4000-8000-000000000003'),
+('40000000-0000-4000-8000-000000000004', 'San Fernando', '30000000-0000-4000-8000-000000000019'),
+('40000000-0000-4000-8000-000000000005', 'El Peñón',     '30000000-0000-4000-8000-000000000003'),
+('40000000-0000-4000-8000-000000000006', 'Santa Rosa',   '30000000-0000-4000-8000-000000000003'),
+('40000000-0000-4000-8000-000000000007', 'Centenario',   '30000000-0000-4000-8000-000000000002'),
+('40000000-0000-4000-8000-000000000008', 'Obrero',       '30000000-0000-4000-8000-000000000009');
+
+-- 5. UBICACION
+INSERT INTO `ubicacion` (`idUbicacion`, `nombreLugar`, `direccion`, `latitud`, `longitud`, `idBarrioFK`) VALUES
+('50000000-0000-4000-8000-000000000001', 'Muro Bulevar del Río - Ermita',                      'Carrera 1 entre Calles 12 y 13', 3.45330000, -76.53280000, '40000000-0000-4000-8000-000000000001'),
+('50000000-0000-4000-8000-000000000002', 'Museo Libre de Siloé (MULAS) - Sector La Estrella',  'Diagonal 51 con Calle 2 Oeste',  3.42150000, -76.55620000, '40000000-0000-4000-8000-000000000002'),
+('50000000-0000-4000-8000-000000000003', 'Callejón del Acueducto y Colina de San Antonio',     'Carrera 10 con Calle 1',         3.44780000, -76.54120000, '40000000-0000-4000-8000-000000000003'),
+('50000000-0000-4000-8000-000000000004', 'Parque Panamericano (Las Banderas) - Muros Calle 5', 'Calle 5 con Carrera 36',         3.43120000, -76.54250000, '40000000-0000-4000-8000-000000000004'),
+('50000000-0000-4000-8000-000000000005', 'Calle de la Escopeta y Corredor del Peñón',          'Calle 2 Oeste con Carrera 3',    3.44950000, -76.53850000, '40000000-0000-4000-8000-000000000005'),
+('50000000-0000-4000-8000-000000000006', 'Avenida Colombia - Pasaje del Río y Muros Túnel',    'Carrera 1 con Calle 8',          3.45100000, -76.53400000, '40000000-0000-4000-8000-000000000006'),
+('50000000-0000-4000-8000-000000000007', 'Plazoleta Jairo Varela y Parque de los Poetas',      'Avenida 2 Norte con Calle 10',   3.45520000, -76.53350000, '40000000-0000-4000-8000-000000000007'),
+('50000000-0000-4000-8000-000000000008', 'Paseo Bolívar y Entorno Puente Ortiz',               'Avenida Colombia con Calle 11',  3.45380000, -76.53390000, '40000000-0000-4000-8000-000000000001');
+
+-- 6. CATEGORIA (5 categorías >= mínimo 5 exigido por la rúbrica)
+INSERT INTO `categoria` (`idCategoria`, `nombreCategoria`, `descripcionCategoria`, `estadoCategoria`) VALUES
+('60000000-0000-4000-8000-000000000001', 'Muralismo Social y Comunitario',   'Intervenciones pictóricas a gran escala orientadas a narrar la memoria colectiva, la dignidad comunitaria y la identidad de sectores urbanos y laderas.', TRUE),
+('60000000-0000-4000-8000-000000000002', 'Grafiti Wildstyle / Lettering',    'Composiciones tipográficas dinámicas con aerosol, letras entrelazadas complejas, brillos, sombras y estilización formal del tag urbano.', TRUE),
+('60000000-0000-4000-8000-000000000003', 'Stencil y Cartelismo Tipográfico', 'Técnicas reproductivas basadas en matrices cortadas a mano, estarcido en aerosol y cartelería tipográfica tradicional paste-up adherida al espacio público.', TRUE),
+('60000000-0000-4000-8000-000000000004', 'Retrato Realista Urbano',          'Representaciones hiperrealistas o figurativas de personajes locales, cultores de la salsa, campesinos, líderes sociales y rostros del Valle del Cauca.', TRUE),
+('60000000-0000-4000-8000-000000000005', 'Neomuralismo y Biodiversidad',     'Propuestas contemporáneas que fusionan estética psicodélica, fauna y flora del Parque Nacional Natural Farallones y cosmogonía indígena.', TRUE);
+
+-- 7. TIPO_RECURSO
+INSERT INTO `tipo_recurso` (`idTipoRecurso`, `nombreTipoRecurso`, `carpetaBase`) VALUES
+('70000000-0000-4000-8000-000000000001', 'IMAGEN',    'RecursosMultimedia/Imagenes/'),
+('70000000-0000-4000-8000-000000000002', 'VIDEO',     'RecursosMultimedia/Videos/'),
+('70000000-0000-4000-8000-000000000003', 'AUDIO',     'RecursosMultimedia/Audios/'),
+('70000000-0000-4000-8000-000000000004', 'MODELO_3D', 'RecursosMultimedia/Modelos3D/'),
+('70000000-0000-4000-8000-000000000005', 'AR',        'RecursosMultimedia/AR/');
+
+-- 8. FORMATO_RECURSO
+INSERT INTO `formato_recurso` (`idFormato`, `extension`, `idTipoRecursoFK`) VALUES
+('80000000-0000-4000-8000-000000000001', 'JPG',  '70000000-0000-4000-8000-000000000001'),
+('80000000-0000-4000-8000-000000000002', 'PNG',  '70000000-0000-4000-8000-000000000001'),
+('80000000-0000-4000-8000-000000000003', 'WEBP', '70000000-0000-4000-8000-000000000001'),
+('80000000-0000-4000-8000-000000000004', 'MP4',  '70000000-0000-4000-8000-000000000002'),
+('80000000-0000-4000-8000-000000000005', 'MP3',  '70000000-0000-4000-8000-000000000003'),
+('80000000-0000-4000-8000-000000000006', 'WAV',  '70000000-0000-4000-8000-000000000003'),
+('80000000-0000-4000-8000-000000000007', 'GLB',  '70000000-0000-4000-8000-000000000004'),
+('80000000-0000-4000-8000-000000000008', 'USDZ', '70000000-0000-4000-8000-000000000005');
+
+-- 9. USUARIO (contraseña cifrada con SHA-256 para 'Cali2026*': 1eba23bb8ef5681b22aeb5c62c87fcaca1c319be5843db51d04ca048358f22cf)
+INSERT INTO `usuario` (`idUsuario`, `nombre1Usuario`, `nombre2Usuario`, `apellido1Usuario`, `apellido2Usuario`, `correoUsuario`, `contrasenaHash`, `fechaRegistroUsuario`, `estadoUsuario`, `idTipoUsuarioFK`) VALUES
+('90000000-0000-4000-8000-000000000001', 'Juan',      'Pablo',     'Campo',  'Bertin',    'juan.campo@uao.edu.co',        '1eba23bb8ef5681b22aeb5c62c87fcaca1c319be5843db51d04ca048358f22cf', '2026-09-01', TRUE, '20000000-0000-4000-8000-000000000001'),
+('90000000-0000-4000-8000-000000000002', 'Jean',      'Deiby',     'Garcia', NULL,        'jean.garcia@uao.edu.co',       '1eba23bb8ef5681b22aeb5c62c87fcaca1c319be5843db51d04ca048358f22cf', '2026-09-01', TRUE, '20000000-0000-4000-8000-000000000001'),
+('90000000-0000-4000-8000-000000000003', 'David',     'Alejandro', 'Castro', 'Benavides', 'david.castro@talentum.edu.co', '1eba23bb8ef5681b22aeb5c62c87fcaca1c319be5843db51d04ca048358f22cf', '2026-09-05', TRUE, '20000000-0000-4000-8000-000000000002'),
+('90000000-0000-4000-8000-000000000004', 'Valentina', NULL,        'Ospina', 'Restrepo',  'turismo.cultura@cali.gov.co',  '1eba23bb8ef5681b22aeb5c62c87fcaca1c319be5843db51d04ca048358f22cf', '2026-09-10', TRUE, '20000000-0000-4000-8000-000000000002');
+
+-- 10. ARTISTA (6 artistas >= mínimo 5 exigido por la rúbrica)
+INSERT INTO `artista` (`idArtista`, `nombreArtistico`, `nombre1Real`, `nombre2Real`, `apellido1Real`, `apellido2Real`, `biografia`, `perfilRedSocial`, `estadoArtista`, `idPaisFK`) VALUES
+('a1000000-0000-4000-8000-000000000001', 'Guache',             'Óscar',     'Mauricio', 'González', 'Ruiz',      'Reconocido artista visual y muralista colombiano. Combina elementos del arte popular tradicional, indigenismo latinoamericano y grafiti contemporáneo con presencia de iconografía prehispánica.', 'https://instagram.com/guache_art',     TRUE, '10000000-0000-4000-8000-000000000001'),
+('a2000000-0000-4000-8000-000000000002', 'Gleo',               'Natalia',   NULL,       'Gallego',  'Sánchez',   'Destacada artista urbana nacida en Cali con proyección internacional. Sus obras presentan figuras místicas con antifaces amarillos, integrando fauna endémica, espiritualidad y naturaleza selvática.', 'https://instagram.com/gleo_art',       TRUE, '10000000-0000-4000-8000-000000000001'),
+('a3000000-0000-4000-8000-000000000003', 'Sobera',             'Juan',      'David',    'Sobera',   'Vallecilla','Muralista y diseñador gráfico caleño. Su lenguaje pictórico resalta la biodiversidad de aves del Valle del Cauca, la cultura salsera y el retrato figurativo con paletas tropicales vibrantes.', 'https://instagram.com/sobera_mural',   TRUE, '10000000-0000-4000-8000-000000000001'),
+('a4000000-0000-4000-8000-000000000004', 'Mesa Gráfica Siloé', 'Carlos',    'Andrés',   'Gómez',    'Perea',     'Líder y vocero del colectivo comunitario de artistas de la Comuna 20. Creadores del Museo Libre de Arte Urbano de Siloé (MULAS), transformando la ladera en galería a cielo abierto por la memoria y la paz.', 'https://instagram.com/mulas_siloe',    TRUE, '10000000-0000-4000-8000-000000000001'),
+('a5000000-0000-4000-8000-000000000005', 'La Linterna Cali',   'Héctor',    'Fabio',    'Morales',  'Rojas',     'Maestro impresor de la mítica imprenta tipográfica tradicional de Cali fundada en 1934. Revitalizada por artistas urbanos mediante grabado en linóleo, cartelería callejera y stencil en San Antonio.', 'https://instagram.com/lalinternacali', TRUE, '10000000-0000-4000-8000-000000000001'),
+('a6000000-0000-4000-8000-000000000006', 'Dexs Graffiti',      'Alexander', NULL,       'Ramos',    'Hurtado',   'Pionero de la cultura del grafiti y wildstyle en Cali. Con más de 20 años de trayectoria decorando muros del Túnel Mundialista, Paso del Comercio y corredores de la Calle Quinta.', 'https://instagram.com/dexsgraffiti',  TRUE, '10000000-0000-4000-8000-000000000001');
+
+-- 11. OBRA (12 obras >= mínimo 10 exigido por la rúbrica)
+INSERT INTO `obra` (`idObra`, `nombreObra`, `descripcionObra`, `fechaCreacion`, `estadoConservacion`, `fechaRegistroObra`, `idArtistaFK`, `idCategoriaFK`, `idUbicacionFK`, `idUsuarioFK`) VALUES
+('d1000000-0000-4000-8000-000000000001',
+ 'El Vuelo de la Guacamaya y los Farallones',
+ 'Impresionante mural de gran formato que representa una deidad femenina alada con máscara dorada, rodeada por la exuberancia de la vegetación nativa del Valle y aves endémicas de la cordillera.',
+ '2023-08-15', 'Excelente', '2026-09-02',
+ 'a2000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000005', '50000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000001'),
+
+('d1000000-0000-4000-8000-000000000002',
+ 'Memoria, Resistencia y Dignidad de Siloé',
+ 'Mural icónico ubicado en la subida a La Estrella en Siloé. Relata la historia de lucha obrera minera, la vida cotidiana de las madres comunitarias y el renacer juvenil a través del arte y la música.',
+ '2022-11-20', 'Bueno', '2026-09-02',
+ 'a4000000-0000-4000-8000-000000000004', '60000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000001'),
+
+('d1000000-0000-4000-8000-000000000003',
+ 'Sinfonía Calima: Oro, Maíz y Tambor',
+ 'Obra pictórica en las escaleras empedradas de San Antonio. Resalta el legado de la cultura precolombina Calima, la espiritualidad del maíz y la vibración afroindígena del territorio vallecaucano.',
+ '2023-04-10', 'Excelente', '2026-09-02',
+ 'a1000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000005', '50000000-0000-4000-8000-000000000003', '90000000-0000-4000-8000-000000000002'),
+
+('d1000000-0000-4000-8000-000000000004',
+ 'Grito Gráfico en Tipografía Móvil',
+ 'Intervención en espacio público mediante técnica mixta de paste-up y grabado tradicional. Recupera fuentes tipográficas históricas con frases de poetas caleños y pregones de salsa.',
+ '2024-02-14', 'Bueno', '2026-09-02',
+ 'a5000000-0000-4000-8000-000000000005', '60000000-0000-4000-8000-000000000003', '50000000-0000-4000-8000-000000000003', '90000000-0000-4000-8000-000000000002'),
+
+('d1000000-0000-4000-8000-000000000005',
+ 'Cali Salsa, Brisa y Movimiento',
+ 'Retrato monumental de bailarines tradicionales de salsa caleña de la vieja guardia. Captura el movimiento de los pies, el brillo de los trajes y la calidez del pueblo caleño en la Calle 5.',
+ '2023-12-05', 'Excelente', '2026-09-03',
+ 'a3000000-0000-4000-8000-000000000003', '60000000-0000-4000-8000-000000000004', '50000000-0000-4000-8000-000000000004', '90000000-0000-4000-8000-000000000001'),
+
+('d1000000-0000-4000-8000-000000000006',
+ 'Guardianes del Río Cali y las Aguas',
+ 'Mural figurativo que rinde homenaje al río tutelar de la ciudad. Representa figuras híbridas protectoras de la flora riparia, iguanas y gualas que habitan el corredor ambiental del Peñón.',
+ '2024-05-18', 'Excelente', '2026-09-03',
+ 'a2000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000005', '50000000-0000-4000-8000-000000000005', '90000000-0000-4000-8000-000000000001'),
+
+('d1000000-0000-4000-8000-000000000007',
+ 'Wildstyle Caleño: Letras de la Sucursal',
+ 'Pieza clásica de grafiti de alta dificultad técnica en aerosol. Tipografía entrelazada tridimensional con tonalidades fucsia, turquesa y amarillo sobre la Avenida Colombia.',
+ '2023-09-22', 'Bueno', '2026-09-04',
+ 'a6000000-0000-4000-8000-000000000006', '60000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000006', '90000000-0000-4000-8000-000000000002'),
+
+('d1000000-0000-4000-8000-000000000008',
+ 'Las Manos de los Carboneros y la Ladera',
+ 'Mural que documenta las raíces mineras del carbón en Siloé. Rostros ajados de mineros ancestrales con manos en primer plano que sostienen picos y linternas de carburo.',
+ '2021-07-10', 'Deteriorado', '2026-09-04',
+ 'a4000000-0000-4000-8000-000000000004', '60000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000001'),
+
+('d1000000-0000-4000-8000-000000000009',
+ 'Retrato al Obrero y Campesino del Valle',
+ 'Muralismo de contenido agrario y popular frente al río. Rostro de un campesino cañero vallecaucano mirando hacia el horizonte con sombrero de paja y machete al cinto.',
+ '2023-01-30', 'Bueno', '2026-09-04',
+ 'a1000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000004', '50000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000001'),
+
+('d1000000-0000-4000-8000-000000000010',
+ 'Melodía de Viento y Trompetas del Niche',
+ 'Mural temático en honor a la composición musical del maestro Jairo Varela. Retrato expresionista de músicos tocando campanas, congas y trompetas al compás de Cali Pachanguero.',
+ '2024-01-15', 'Excelente', '2026-09-05',
+ 'a3000000-0000-4000-8000-000000000003', '60000000-0000-4000-8000-000000000004', '50000000-0000-4000-8000-000000000007', '90000000-0000-4000-8000-000000000002'),
+
+('d1000000-0000-4000-8000-000000000011',
+ 'Ancestralidad, Jaguar y Resistencia',
+ 'Intervención en el Paseo Bolívar con estética indigenista. Un jaguar amazónico en tonos ocre y azul petróleo emerge de patrones geométricos ceremoniales.',
+ '2022-09-12', 'Bueno', '2026-09-05',
+ 'a1000000-0000-4000-8000-000000000001', '60000000-0000-4000-8000-000000000005', '50000000-0000-4000-8000-000000000008', '90000000-0000-4000-8000-000000000001'),
+
+('d1000000-0000-4000-8000-000000000012',
+ 'Niños de la Estrella: Esperanza en Colores',
+ 'Pintura comunitaria en una cancha de Siloé con retratos de niños jugando, cometas de papel elevándose al cielo y el sol poniéndose tras la cordillera occidental.',
+ '2024-03-20', 'Excelente', '2026-09-05',
+ 'a4000000-0000-4000-8000-000000000004', '60000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000001');
+
+-- 12. RUTA (3 rutas >= mínimo 3 exigido por la rúbrica)
+INSERT INTO `ruta` (`idRuta`, `nombreRuta`, `descripcionRuta`, `duracionEstimada`, `distanciaEstimada`, `estadoRuta`) VALUES
+('f1000000-0000-4000-8000-000000000001',
+ 'Circuito Histórico y Neomuralista: Bulevar del Río a San Antonio',
+ 'Recorrido peatonal emblemático por la Comuna 3. Inicia en el Muro Bulevar junto a la Ermita, bordea el río Cali pasando por la Calle de la Escopeta y culmina en las escaleras patrimoniales de San Antonio admirando obras de Gleo y Guache.',
+ 120, 2.50, TRUE),
+
+('f2000000-0000-4000-8000-000000000002',
+ 'Ruta del Grafiti y Memoria Comunitaria en Siloé (MULAS)',
+ 'Experiencia cultural y social transformadora en la Comuna 20. Guiada por los propios jóvenes del colectivo, asciende hacia el monumento de La Estrella descubriendo murales de memoria obrera, resiliencia y esperanza.',
+ 150, 3.20, TRUE),
+
+('f3000000-0000-4000-8000-000000000003',
+ 'Corredor de la Salsa, Letras Urbanas y Ritmo Caleño',
+ 'Circuito mixto peatonal-vehicular que conecta los templos de la música y la gráfica urbana: desde la Plazoleta Jairo Varela, pasando por los muros del Túnel Mundialista, el Paseo Bolívar hasta el Parque Panamericano en la Calle 5.',
+ 135, 4.80, TRUE);
+
+-- 13. RUTA_OBRA (12 paradas ordenadas sin repetir obra ni orden en cada ruta)
+INSERT INTO `ruta_obra` (`idRutaObra`, `ordenVisita`, `recomendacion`, `tiempoPermanencia`, `idRutaFK`, `idObraFK`) VALUES
+('b1000000-0000-4000-8000-000000000001', 1, 'Punto de inicio en la Ermita. Recomendado llegar a las 4:00 pm para aprovechar la brisa caleña y la luz lateral sobre el mural de Gleo.', 25, 'f1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001'),
+('b1000000-0000-4000-8000-000000000002', 2, 'Ubicado a 200 metros sobre el mismo Bulevar. Excelente punto para fotografía en contrapicado del rostro campesino.', 20, 'f1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000009'),
+('b1000000-0000-4000-8000-000000000003', 3, 'Caminar cruzando hacia la Calle de la Escopeta. Observar la integración del mural con la vegetación del río.', 25, 'f1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000006'),
+('b1000000-0000-4000-8000-000000000004', 4, 'Ascenso a la Colina de San Antonio. Probar macetas de azúcar típicas y contemplar el atardecer sobre el mural de Guache.', 35, 'f1000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000003'),
+
+('b1000000-0000-4000-8000-000000000005', 1, 'Punto de encuentro en la estación del MÍO Cable Brisas de Mayo. Iniciar con la explicación histórica del colectivo MULAS.', 30, 'f2000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000002'),
+('b1000000-0000-4000-8000-000000000006', 2, 'Sector Brisas. Usar calzado cómodo para caminar por callejones de ladera. Escuchar el testimonio minero con audífonos.', 25, 'f2000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000008'),
+('b1000000-0000-4000-8000-000000000007', 3, 'Cancha deportiva de la comunidad. Espacio ideal para interactuar con niños y jóvenes artistas en formación.', 25, 'f2000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000012'),
+('b1000000-0000-4000-8000-000000000008', 4, 'Parada final conectando con cartelería popular de La Linterna. Vista panorámica nocturna de toda la ciudad de Cali.', 30, 'f2000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000004'),
+
+('b1000000-0000-4000-8000-000000000009', 1, 'Inicio frente a la trompeta monumental de Jairo Varela. Escuchar las anécdotas de composición de salsa con la audioguía.', 25, 'f3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000010'),
+('b1000000-0000-4000-8000-000000000010', 2, 'Descenso hacia los muros del Túnel Mundialista. Excelente para apreciar la técnica de aerosol y letras wildstyle de Dexs.', 20, 'f3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000007'),
+('b1000000-0000-4000-8000-000000000011', 3, 'Conexión por el Paseo Bolívar junto al Puente Ortiz. Apreciar el jaguar ceremonial prehispánico.', 25, 'f3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000011'),
+('b1000000-0000-4000-8000-000000000012', 4, 'Cierre en el Parque Panamericano en la Calle 5. Visita a puestos de cholado caleño mientras se disfruta el mural de bailarines.', 35, 'f3000000-0000-4000-8000-000000000003', 'd1000000-0000-4000-8000-000000000005');
+
+-- 14. RECURSO_MULTIMEDIA (30 recursos >= mínimo 15 exigido por la rúbrica)
+INSERT INTO `recurso_multimedia` (`idRecurso`, `nombreRecurso`, `descripcionRecurso`, `rutaArchivo`, `tamanio`, `duracion`, `fechaRegistroRecurso`, `idFormatoFK`, `idObraFK`) VALUES
+('c1000000-0000-4000-8000-000000000001', 'Fotografía Frontal Diurna',             'Toma en plano general con luz natural matutina en el Bulevar del Río',  'obra_001_frontal.jpg',        4.52, NULL, '2026-09-02', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001'),
+('c1000000-0000-4000-8000-000000000002', 'Detalle Rostro y Máscara',              'Primer plano del trabajo en spray y texturas del rostro mítico',        'obra_001_detalle.png',        6.13, NULL, '2026-09-02', '80000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001'),
+('c1000000-0000-4000-8000-000000000003', 'Time-lapse Proceso Pictórico',          'Grabación acelerada de 4 días de pintura por la artista Gleo',          'obra_001_proceso.mp4',       54.89,  185, '2026-09-02', '80000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000001'),
+('c1000000-0000-4000-8000-000000000004', 'Audioguía Curatorial',                  'Narración en audio sobre la fauna y el concepto mítico de la obra',     'obra_001_audioguia.mp3',      8.45,  240, '2026-09-02', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000001'),
+('c1000000-0000-4000-8000-000000000005', 'Modelo 3D del Muro y Relieve',          'Malla tridimensional fotogramétrica del muro intervenido',              'obra_001_fotogrametria.glb', 18.45, NULL, '2026-09-02', '80000000-0000-4000-8000-000000000007', 'd1000000-0000-4000-8000-000000000001'),
+('c1000000-0000-4000-8000-000000000006', 'Fotografía Panorámica La Estrella',     'Vista panorámica con la ladera de Siloé y la ciudad al fondo',          'obra_002_panoramica.jpg',     5.12, NULL, '2026-09-02', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000002'),
+('c1000000-0000-4000-8000-000000000007', 'Testimonio Lideresa Comunitaria',       'Entrevista testimonial a doña Carmen sobre la historia del mural',      'obra_002_testimonio.mp3',     9.80,  310, '2026-09-02', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000002'),
+('c1000000-0000-4000-8000-000000000008', 'Experiencia Realidad Aumentada',        'Marcador de realidad aumentada para visualización interactiva móvil',   'obra_002_experiencia.usdz',  12.30, NULL, '2026-09-02', '80000000-0000-4000-8000-000000000008', 'd1000000-0000-4000-8000-000000000002'),
+('c1000000-0000-4000-8000-000000000009', 'Fotografía Escalinatas San Antonio',    'Perspectiva ascendente del mural integrado en la arquitectura colonial', 'obra_003_escaleras.jpg',      4.92, NULL, '2026-09-02', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000003'),
+('c1000000-0000-4000-8000-000000000010', 'Mini-Doc Entrevista con Guache',        'Entrevista al artista explicando la simbología orfebre Calima',         'obra_003_entrevista.mp4',    78.90,  260, '2026-09-02', '80000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000003'),
+('c1000000-0000-4000-8000-000000000011', 'Muestra Auditiva Marimba de Chonta',    'Pista sonora ambiental de música del Pacífico que acompaña la obra',    'obra_003_marimba.mp3',        6.20,  195, '2026-09-02', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000003'),
+('c1000000-0000-4000-8000-000000000012', 'Fotografía Muro Paste-Up',              'Detalle de carteles tipográficos sobrepuestos en muro empedrado',       'obra_004_carteles.jpg',       3.80, NULL, '2026-09-02', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000004'),
+('c1000000-0000-4000-8000-000000000013', 'Sonido de Prensa Tipográfica Marinoni', 'Registro sonoro histórico de la imprenta mecánica de 1890 en acción',   'obra_004_imprenta.mp3',       4.50,  120, '2026-09-02', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000004'),
+('c1000000-0000-4000-8000-000000000014', 'Fotografía Frontal Mural Salsa',        'Composición completa con iluminación nocturna de reflectores',          'obra_005_frontal.jpg',        5.60, NULL, '2026-09-03', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000005'),
+('c1000000-0000-4000-8000-000000000015', 'Cápsula de Video Bailarines',           'Bailarines de salsa ejecutando el paso frente al mural de Sobera',      'obra_005_bailarines.mp4',    62.30,  150, '2026-09-03', '80000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000005'),
+('c1000000-0000-4000-8000-000000000016', 'Fotografía Integración con el Río',     'Mural enmarcado por los árboles de samán y el cauce del río Cali',      'obra_006_rio.jpg',            4.85, NULL, '2026-09-03', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000006'),
+('c1000000-0000-4000-8000-000000000017', 'Modelo 3D Relieve Escopeta',            'Reconstrucción volumétrica digital de la esquina patrimonial',          'obra_006_entorno.glb',       15.20, NULL, '2026-09-03', '80000000-0000-4000-8000-000000000007', 'd1000000-0000-4000-8000-000000000006'),
+('c1000000-0000-4000-8000-000000000018', 'Fotografía Panorámica Graffiti',        'Toma en gran angular del muro completo de 25 metros de longitud',       'obra_007_wildstyle.jpg',      5.90, NULL, '2026-09-04', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000007'),
+('c1000000-0000-4000-8000-000000000019', 'Entrevista al Escritor Dexs',           'Historia sobre los inicios de la cultura del spray en los años 90',     'obra_007_dexs.mp3',           7.50,  210, '2026-09-04', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000007'),
+('c1000000-0000-4000-8000-000000000020', 'Fotografía Testimonial Minera',         'Encuadre dramático del rostro del minero y textura del muro',           'obra_008_minero.jpg',         4.30, NULL, '2026-09-04', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000008'),
+('c1000000-0000-4000-8000-000000000021', 'Paisaje Sonoro de la Mina',             'Ecos y golpes de piqueta tradicionales grabados en socavón antiguo',    'obra_008_mina.mp3',           5.10,  160, '2026-09-04', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000008'),
+('c1000000-0000-4000-8000-000000000022', 'Fotografía Luz Crepuscular',            'Toma capturada a las 6:00 pm con iluminación del atardecer',            'obra_009_campesino.jpg',      4.75, NULL, '2026-09-04', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000009'),
+('c1000000-0000-4000-8000-000000000023', 'Detalle Ojos y Sombrero',               'Textura al óleo y spray en las arrugas del rostro campesino',           'obra_009_detalle.png',        5.80, NULL, '2026-09-04', '80000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000009'),
+('c1000000-0000-4000-8000-000000000024', 'Fotografía Plazoleta Monumento',        'Mural enmarcado con las trompetas gigantes del monumento a Varela',     'obra_010_plazoleta.jpg',      5.25, NULL, '2026-09-05', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000010'),
+('c1000000-0000-4000-8000-000000000025', 'Acordes de Trompeta en Vivo',           'Solo de trompeta grabado en la plazoleta en tributo al Grupo Niche',    'obra_010_trompeta.mp3',       6.80,  175, '2026-09-05', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000010'),
+('c1000000-0000-4000-8000-000000000026', 'Fotografía Frontal Jaguar',             'Composición simétrica del felino sagrado con paleta en azules',         'obra_011_jaguar.jpg',         5.10, NULL, '2026-09-05', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000011'),
+('c1000000-0000-4000-8000-000000000027', 'Modelo 3D Escultura Jaguar',            'Asset digital del jaguar para visualización en tiempo real',            'obra_011_jaguar3d.glb',      16.70, NULL, '2026-09-05', '80000000-0000-4000-8000-000000000007', 'd1000000-0000-4000-8000-000000000011'),
+('c1000000-0000-4000-8000-000000000028', 'Fotografía Niños y Cancha',             'Mural interactivo que sirve de fondo a las actividades infantiles',     'obra_012_infantil.jpg',       4.60, NULL, '2026-09-05', '80000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000012'),
+('c1000000-0000-4000-8000-000000000029', 'Canto Infantil de Siloé',               'Grabación de rondas y canciones infantiles del semillero de arte',      'obra_012_cantos.mp3',         4.90,  140, '2026-09-05', '80000000-0000-4000-8000-000000000005', 'd1000000-0000-4000-8000-000000000012'),
+('c1000000-0000-4000-8000-000000000030', 'Video Resumen Proyecto Comunitario',    'Documental breve sobre la pintura colectiva del mural con la comunidad','obra_012_documental.mp4',    71.20,  240, '2026-09-05', '80000000-0000-4000-8000-000000000004', 'd1000000-0000-4000-8000-000000000012');
 
 
--- =====================================================================
---  Galería de Arte Urbano de Cali
---  Etapa 5 — Script 04: Operaciones y consultas SQL
---  Contiene: INSERT / SELECT / UPDATE / DELETE, JOIN entre varias tablas,
---            agregaciones (GROUP BY, COUNT, SUM, HAVING), uso de vistas,
---            llamadas a procedimientos y verificación del índice (EXPLAIN).
---  Se puede ejecutar completo: al final la base queda igual que después del script 02.
--- =====================================================================
-SET NAMES utf8mb4;
-USE galeria_arte_urbano_cali;
+-- =============================================================================
+-- 15. EJEMPLOS DE INSERT, UPDATE Y DELETE QUE RESPETAN LA INTEGRIDAD REFERENCIAL
+-- =============================================================================
 
--- =====================================================================
--- A. CONSULTAS REQUERIDAS POR EL ENUNCIADO (sección 12) — JOIN entre varias tablas
--- =====================================================================
+-- Ejemplo INSERT: Registrar un artista invitado sin obras para prueba referencial
+INSERT INTO `artista` (`idArtista`, `nombreArtistico`, `nombre1Real`, `nombre2Real`, `apellido1Real`, `apellido2Real`, `biografia`, `perfilRedSocial`, `estadoArtista`, `idPaisFK`)
+VALUES ('a7000000-0000-4000-8000-000000000007', 'Vertigo Urbano', 'Santiago', NULL, 'Lozano', 'Caicedo', 'Muralista invitado del festival de arte urbano.', 'https://instagram.com/vertigourbano', TRUE, '10000000-0000-4000-8000-000000000001');
 
--- A1. Consulta de obra: nombre, artista, categoría, ubicación y recursos multimedia
-SELECT  o.nombre               AS obra,
-        a.nombre_artistico     AS artista,
-        c.nombre               AS categoria,
-        CONCAT(u.nombre_lugar, ' - ', b.nombre, ' (comuna ', b.comuna, ')') AS ubicacion,
-        rm.nombre              AS recurso,
-        f.tipo_recurso,
-        rm.ruta_archivo
-FROM    obra o
-        JOIN artista   a ON a.id_artista   = o.id_artistaFK
-        JOIN categoria c ON c.id_categoria = o.id_categoriaFK
-        JOIN ubicacion u ON u.id_ubicacion = o.id_ubicacionFK
-        JOIN barrio    b ON b.id_barrio    = u.id_barrioFK
-        LEFT JOIN recurso_multimedia rm ON rm.id_obraFK = o.id_obra          -- LEFT: muestra la obra aunque no tenga recursos
-        LEFT JOIN formato_multimedia f  ON f.codigo_formato = rm.codigo_formatoFK
-WHERE   o.nombre = 'Memoria del Río';
+-- Ejemplo UPDATE 1: Actualizar el estado de conservación de una obra tras jornada de restauración
+UPDATE `obra`
+SET `estadoConservacion` = 'Regular'
+WHERE `idObra` = 'd1000000-0000-4000-8000-000000000008';
 
--- A2. Obras por artista
-SELECT obra, categoria, lugar, barrio, estado_conservacion
-FROM   vw_obra_detalle
-WHERE  artista = 'Kromo Salsa'
-ORDER  BY obra;
+-- Ejemplo UPDATE 2: Actualizar el tiempo de permanencia en una parada de ruta
+UPDATE `ruta_obra`
+SET `tiempoPermanencia` = 30
+WHERE `idRutaObra` = 'b1000000-0000-4000-8000-000000000002';
 
--- A3. Obras por categoría
-SELECT obra, artista, lugar, barrio
-FROM   vw_obra_detalle
-WHERE  categoria = 'Muralismo'
-ORDER  BY obra;
-
--- A4. Obras por ubicación: por barrio y por comuna
-SELECT obra, artista, lugar FROM vw_obra_detalle WHERE barrio = 'San Antonio';
-SELECT obra, artista, barrio, lugar FROM vw_obra_detalle WHERE comuna = 3 ORDER BY barrio, obra;
-
--- A5. Consulta de ruta: obras que la componen, orden y ubicación de cada una
-SELECT orden_visita, obra, artista, lugar, barrio, tiempo_estimado_min, recomendacion
-FROM   vw_ruta_detalle
-WHERE  ruta = 'Ruta Centro Histórico y Río'
-ORDER  BY orden_visita;
-
--- A6. Todos los recursos multimedia de una obra
-SELECT nombre, tipo_recurso, formato, ruta_archivo,
-       ROUND(tamano_bytes / 1024, 1) AS tamano_kb, duracion_segundos
-FROM   vw_recurso_detalle
-WHERE  obra = 'Memoria del Río'
-ORDER  BY tipo_recurso, nombre;
+-- Ejemplo DELETE: Eliminar físicamente al artista temporal que no posee obras asociadas (respeta ON DELETE RESTRICT en obra.idArtistaFK)
+DELETE FROM `artista`
+WHERE `idArtista` = 'a7000000-0000-4000-8000-000000000007'
+  AND NOT EXISTS (SELECT 1 FROM `obra` o WHERE o.`idArtistaFK` = 'a7000000-0000-4000-8000-000000000007');
 
 
--- =====================================================================
--- B. CONSULTAS CON AGREGACIÓN (mínimo 3: GROUP BY, COUNT, HAVING)
--- =====================================================================
+-- =============================================================================
+-- 16. CONSULTAS MULTITABLA CON JOIN, AGREGACIÓN (GROUP BY, COUNT, HAVING) Y VISTAS
+-- =============================================================================
 
--- B1. Número de obras por comuna
-SELECT  b.comuna,
-        COUNT(o.id_obra)                       AS total_obras,
-        GROUP_CONCAT(DISTINCT b.nombre ORDER BY b.nombre SEPARATOR ', ') AS barrios
-FROM    barrio b
-        JOIN ubicacion u ON u.id_barrioFK    = b.id_barrio
-        JOIN obra      o ON o.id_ubicacionFK = u.id_ubicacion
-GROUP BY b.comuna
-ORDER BY total_obras DESC, b.comuna;
+-- Consulta 1: Artistas con 2 o más obras registradas y su volumen multimedia (JOIN 4 tablas + GROUP BY + HAVING)
+SELECT
+    a.`nombreArtistico` AS `artista`,
+    CONCAT_WS(' ', a.`nombre1Real`, a.`nombre2Real`, a.`apellido1Real`, a.`apellido2Real`) AS `nombre_real`,
+    p.`nombrePais` AS `pais`,
+    COUNT(DISTINCT o.`idObra`) AS `total_obras_registradas`,
+    COUNT(rm.`idRecurso`) AS `total_archivos_multimedia`,
+    ROUND(COALESCE(SUM(rm.`tamanio`), 0), 2) AS `almacenamiento_total_mb`
+FROM `artista` a
+INNER JOIN `pais` p                     ON a.`idPaisFK`  = p.`idPais`
+INNER JOIN `obra` o                     ON a.`idArtista` = o.`idArtistaFK`
+LEFT JOIN `recurso_multimedia` rm       ON o.`idObra`    = rm.`idObraFK`
+GROUP BY a.`idArtista`, a.`nombreArtistico`, `nombre_real`, p.`nombrePais`
+HAVING COUNT(DISTINCT o.`idObra`) >= 2
+ORDER BY `total_obras_registradas` DESC, `almacenamiento_total_mb` DESC;
 
--- B2. Artistas con más de N obras (HAVING). Aquí N = 1 → artistas con 2 o más obras
-SELECT  a.nombre_artistico,
-        COUNT(o.id_obra) AS total_obras
-FROM    artista a
-        JOIN obra o ON o.id_artistaFK = a.id_artista
-GROUP BY a.id_artista, a.nombre_artistico
-HAVING  COUNT(o.id_obra) > 1
-ORDER BY total_obras DESC, a.nombre_artistico;
+-- Consulta 2: Distribución de recursos multimedia por tipo y formato (JOIN 3 tablas + GROUP BY)
+SELECT
+    tr.`nombreTipoRecurso` AS `tipo_recurso`,
+    fr.`extension` AS `formato`,
+    tr.`carpetaBase` AS `directorio_relativo`,
+    COUNT(rm.`idRecurso`) AS `cantidad_archivos`,
+    ROUND(COALESCE(SUM(rm.`tamanio`), 0), 2) AS `peso_acumulado_mb`
+FROM `tipo_recurso` tr
+INNER JOIN `formato_recurso` fr         ON tr.`idTipoRecurso` = fr.`idTipoRecursoFK`
+INNER JOIN `recurso_multimedia` rm      ON fr.`idFormato`     = rm.`idFormatoFK`
+GROUP BY tr.`idTipoRecurso`, tr.`nombreTipoRecurso`, fr.`extension`, tr.`carpetaBase`
+ORDER BY `cantidad_archivos` DESC;
 
--- B3. Obras por categoría, incluyendo las categorías sin obras (LEFT JOIN + COUNT de la columna)
-SELECT  c.nombre AS categoria, c.estado,
-        COUNT(o.id_obra) AS total_obras
-FROM    categoria c
-        LEFT JOIN obra o ON o.id_categoriaFK = c.id_categoria
-GROUP BY c.id_categoria, c.nombre, c.estado
-ORDER BY total_obras DESC, categoria;
+-- Consulta 3: Cantidad de obras por categoría técnica (JOIN + GROUP BY + COUNT)
+SELECT
+    c.`nombreCategoria` AS `categoria`,
+    COUNT(DISTINCT o.`idObra`) AS `total_obras`,
+    COUNT(rm.`idRecurso`) AS `total_recursos_multimedia`
+FROM `categoria` c
+LEFT JOIN `obra` o                  ON c.`idCategoria` = o.`idCategoriaFK`
+LEFT JOIN `recurso_multimedia` rm   ON o.`idObra`      = rm.`idObraFK`
+GROUP BY c.`idCategoria`, c.`nombreCategoria`
+ORDER BY `total_obras` DESC;
 
--- B4. Recursos por tipo: cantidad y espacio ocupado en disco (MB)
-SELECT  f.tipo_recurso,
-        COUNT(*)                                  AS cantidad,
-        ROUND(SUM(rm.tamano_bytes) / 1048576, 2)  AS total_mb
-FROM    recurso_multimedia rm
-        JOIN formato_multimedia f ON f.codigo_formato = rm.codigo_formatoFK
-GROUP BY f.tipo_recurso
-ORDER BY cantidad DESC;
+-- Consulta 4: Verificación de Vista 1 (Catálogo completo de obras - JOIN 9 tablas)
+SELECT `titulo_obra`, `artista`, `pais_artista`, `categoria_tecnica`, `barrio`, `comuna`, `estadoConservacion`, `registrado_por`
+FROM `vw_catalogo_obras_completo`
+ORDER BY `numero_comuna`, `titulo_obra`;
 
--- B5. Rutas con al menos 3 obras y el tiempo total de permanencia frente a las obras
-SELECT  r.nombre, r.estado,
-        COUNT(ro.id_obraFK)          AS obras,
-        SUM(ro.tiempo_estimado_min)  AS minutos_frente_a_obras,
-        r.duracion_estimada_min      AS duracion_total_estimada
-FROM    ruta r
-        JOIN ruta_obra ro ON ro.id_rutaFK = r.id_ruta
-GROUP BY r.id_ruta, r.nombre, r.estado, r.duracion_estimada_min
-HAVING  COUNT(ro.id_obraFK) >= 3;
+-- Consulta 5: Verificación de Vista 2 (Itinerario ordenado de rutas - JOIN 7 tablas)
+SELECT `nombre_ruta`, `orden_visita`, `titulo_obra`, `artista`, `barrio`, `comuna`, `tiempo_permanencia_min`
+FROM `vw_rutas_itinerario_detallado`
+ORDER BY `nombre_ruta`, `orden_visita`;
 
--- B6. Estado de conservación del patrimonio (útil para priorizar restauraciones)
-SELECT estado_conservacion, COUNT(*) AS obras
-FROM   obra
-GROUP BY estado_conservacion
-ORDER BY FIELD(estado_conservacion, 'EXCELENTE', 'BUENO', 'DETERIORADO', 'DESTRUIDO');
+-- Consulta 6: Verificación de Vista 3 (Resumen multimedia por obra - JOIN 6 tablas)
+SELECT `titulo_obra`, `artista`, `total_recursos`, `cant_imagenes`, `cant_videos`, `cant_audios`, `cant_modelos_3d`, `cant_experiencias_ar`, `tamano_total_mb`
+FROM `vw_obras_resumen_multimedia`
+ORDER BY `tamano_total_mb` DESC;
 
--- B7. Obras que NO tienen ninguna imagen (control de calidad del catálogo)
-SELECT o.nombre
-FROM   obra o
-WHERE  NOT EXISTS (SELECT 1
-                   FROM recurso_multimedia rm
-                   JOIN formato_multimedia f ON f.codigo_formato = rm.codigo_formatoFK
-                   WHERE rm.id_obraFK = o.id_obra AND f.tipo_recurso = 'IMAGEN');
-
-
--- =====================================================================
--- C. OPERACIONES INSERT / UPDATE / DELETE
--- Se ejecutan dentro de una transacción y se deshacen con ROLLBACK para que
--- el script sea repetible. (Cambien ROLLBACK por COMMIT para dejarlas aplicadas.)
--- =====================================================================
-START TRANSACTION;
-
--- C1. INSERT: nueva categoría y nueva obra (el UUID lo genera el DEFAULT (UUID()))
-INSERT INTO categoria (nombre, descripcion) VALUES ('Instalación urbana', 'Obras tridimensionales en el espacio público.');
-
-INSERT INTO obra (nombre, descripcion, fecha_creacion, estado_conservacion,
-                  id_artistaFK, id_categoriaFK, id_ubicacionFK, id_usuarioFK)
-SELECT 'Raíz de Cañasgordas', 'Instalación con materiales reciclados.', '2025-05-01', 'EXCELENTE',
-       a.id_artista, c.id_categoria, u.id_ubicacion, us.id_usuario
-FROM   artista a, categoria c, ubicacion u, usuario us
-WHERE  a.nombre_artistico = 'Tinta Ladera' AND c.nombre = 'Instalación urbana'
-  AND  u.nombre_lugar = 'Muro Cañasgordas' AND us.correo = 'admin@galeriacali.co';
-
-SELECT obra, artista, categoria, barrio FROM vw_obra_detalle WHERE obra = 'Raíz de Cañasgordas';
-
--- C2. UPDATE: la obra "Frutas del Mercado" fue restaurada
-UPDATE obra SET estado_conservacion = 'EXCELENTE' WHERE nombre = 'Frutas del Mercado';
--- UPDATE: desactivar una categoría (no se borra porque podría tener obras)
-UPDATE categoria SET estado = 'INACTIVO' WHERE nombre = 'Stencil';
-
-SELECT nombre, estado_conservacion FROM obra WHERE nombre = 'Frutas del Mercado';
-
--- C3. DELETE: eliminar un recurso multimedia
-DELETE FROM recurso_multimedia WHERE ruta_archivo = 'Imagenes/obra_012_archivo.jpg';
--- DELETE con CASCADE: al borrar la obra nueva se borrarían también sus recursos
-DELETE FROM obra WHERE nombre = 'Raíz de Cañasgordas';
-
-SELECT COUNT(*) AS recursos_restantes FROM recurso_multimedia;
-
-ROLLBACK;   -- deshace C1, C2 y C3
-
--- C4. DELETE que la base de datos RECHAZA (integridad referencial, RN-02).
---     Descomenten para verlo: Error 1451 "Cannot delete or update a parent row"
--- DELETE FROM artista WHERE nombre_artistico = 'Kromo Salsa';
-
-
--- =====================================================================
--- D. PROCEDIMIENTOS ALMACENADOS
--- (Los procedimientos usan su propia transacción, por eso se demuestran con
---  operaciones que se revierten manualmente en lugar de ROLLBACK.)
--- =====================================================================
-SET @ruta_siloe = (SELECT id_ruta FROM ruta WHERE nombre = 'Ruta Ladera de Siloé');
-SET @obra_abuela = (SELECT id_obra FROM obra WHERE nombre = 'Mirada de Abuela');
-
--- D1. Agregar una obra al final de la ruta (el procedimiento calcula el orden = 3)
-CALL sp_agregar_obra_a_ruta(@ruta_siloe, @obra_abuela, 15, 'Parada opcional de regreso.');
-SELECT orden_visita, obra FROM vw_ruta_detalle WHERE id_ruta = @ruta_siloe ORDER BY orden_visita;
-
--- D2. Moverla a la primera posición (las demás se desplazan)
-CALL sp_mover_obra_en_ruta(@ruta_siloe, @obra_abuela, 1);
-SELECT orden_visita, obra FROM vw_ruta_detalle WHERE id_ruta = @ruta_siloe ORDER BY orden_visita;
-
--- D3. Retirarla (el orden se compacta de nuevo a 1, 2)
-CALL sp_retirar_obra_de_ruta(@ruta_siloe, @obra_abuela);
-SELECT orden_visita, obra FROM vw_ruta_detalle WHERE id_ruta = @ruta_siloe ORDER BY orden_visita;
-
--- D4. Eliminar o desactivar artista
---   "Lienzo Errante" no tiene obras → se ELIMINA. Luego se vuelve a insertar para dejar los datos igual.
-CALL sp_eliminar_o_desactivar_artista('20000000-0000-4000-8000-000000000007', @resultado);
-SELECT @resultado AS resultado_lienzo_errante;   -- ELIMINADO
-INSERT INTO artista (id_artista, nombre_artistico, biografia, pais_origen, estado)
-VALUES ('20000000-0000-4000-8000-000000000007', 'Lienzo Errante',
-        'Artista itinerante registrado para un próximo festival; aún sin obras en Cali.', 'Argentina', 'ACTIVO');
---   Con un artista que SÍ tiene obras, el procedimiento solo lo desactiva:
---   CALL sp_eliminar_o_desactivar_artista('20000000-0000-4000-8000-000000000001', @resultado);  -- DESACTIVADO
-
-
--- =====================================================================
--- E. VERIFICACIÓN DE LOS ÍNDICES CON EXPLAIN
--- =====================================================================
--- E1. Búsqueda por nombre: con idx_obra_nombre → type = range, key = idx_obra_nombre, sin filesort
-EXPLAIN SELECT id_obra, nombre FROM obra WHERE nombre LIKE 'Mem%' ORDER BY nombre;
-
--- E2. Obras de una comuna: con idx_barrio_comuna → la tabla barrio se accede con type = ref
-EXPLAIN SELECT b.comuna, COUNT(o.id_obra)
-        FROM barrio b
-        JOIN ubicacion u ON u.id_barrioFK = b.id_barrio
-        JOIN obra o      ON o.id_ubicacionFK = u.id_ubicacion
-        WHERE b.comuna = 3
-        GROUP BY b.comuna;
+-- Consulta 7: Verificación de Vista 4 (Estadísticas por comuna - JOIN 6 tablas)
+SELECT * FROM `vw_estadisticas_culturales_comuna`
+ORDER BY `total_obras` DESC;
