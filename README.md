@@ -15,6 +15,8 @@ Aplicación de escritorio en **C# Windows Forms (.NET 10)** conectada a **MySQL 
 
 Los archivos físicos (imágenes, videos, audios, modelos 3D y referencias AR) se almacenan en el sistema de archivos dentro de la carpeta `RecursosMultimedia/`, mientras que MySQL guarda únicamente sus metadatos y la ruta relativa correspondiente.
 
+Todos los entregables oficiales exigidos en la rúbrica del curso se encuentran consolidados en la carpeta **`Entrega_Final_Classroom/`** (MER .uxf y .jpg, MRD .xlsx, Script SQL unificado, C# empaquetado en .zip, guion y video de sustentación).
+
 ---
 
 ## 2. Arquitectura por Capas del Proyecto C#
@@ -47,6 +49,10 @@ En **MySQL Workbench** (conectado a una instancia local de MySQL 8.0):
 
 ## 4. Configuración de la Cadena de Conexión y Ejecución en C#
 
+### 4.1 Ejecución Directa (Sin compilar)
+El repositorio incluye la carpeta **`Ejecutable_Listo_Para_Usar/`** con el binario compilado en modo Release (`GaleriaArteUrbanoCali.exe`), todas sus librerías asociadas (`MySql.Data.dll`, `BouncyCastle`, etc.) y la carpeta `RecursosMultimedia/`. Basta con hacer doble clic sobre `GaleriaArteUrbanoCali.exe` para probar el aplicativo de inmediato.
+
+### 4.2 Compilación desde Código Fuente
 La cadena de conexión se configura en [`models/ConexionMysql.cs`](./models/ConexionMysql.cs) con los parámetros por defecto de MySQL local:
 * **Servidor:** `localhost`
 * **Puerto:** `3306`
